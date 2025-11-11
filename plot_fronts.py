@@ -61,6 +61,42 @@ def plot_pareto_front(m=10, replication=0, header=True):
     # Save the plot as an image file
     plt.savefig('plots/fronts/' + output_filename + '.pdf')
     plt.close()
+    
+def plot_pareto_front_aware(m=10, replication=0, header=True):
+    file_path = f'Applications/EvoChecker-master/data/ROBOT{m}_REP{replication}_PLUS/NSGAII/'
+    x_values_pp, y_values_pp = __get_data(file_path, header)
+
+    file_path = f'Applications/EvoChecker-master/data/ROBOT{m}_REP{replication}_UA/NSGAII/'
+    x_values_ua, y_values_ua = __get_data(file_path, header)
+    
+    filepath = f'Applications/EvoChecker-master/data/ROBOT{m}_BASELINE'
+    x_values_b, y_values_b = __get_data(filepath, header=False, split='	')
+    x_values_b = x_values_b[:10]
+    y_values_b = y_values_b[:10]
+
+    plt.figure(figsize=(8, 6))
+
+
+    # Add blue dots for Parley
+    plt.scatter(x_values_ua, y_values_ua, facecolors='none', edgecolors='green', marker='o', label='UA')
+    # Add red crosses for the baseline
+    plt.scatter(x_values_b, y_values_b, color='red', marker='x', label='Baseline')
+    # Add green pluses for Parley
+    plt.scatter(x_values_pp, y_values_pp, color='blue', marker='+', label='PARLEY+')
+
+
+    plt.xlabel('Probability of mission success')
+    plt.ylabel('Cost')
+    output_filename = f'robot{m}_rep{replication}'
+    plt.title(output_filename)
+    plt.xlim(1, 0.2)
+    plt.ylim(0, 200)
+    plt.legend()
+    plt.grid(True)
+
+    # Save the plot as an image file
+    plt.savefig('plots/fronts/' + output_filename + '.png')
+    plt.close()
 
 
 def plot_pareto_front_for_robot(m=10, replication=2, ref_point=(0.7, 80), header=True):

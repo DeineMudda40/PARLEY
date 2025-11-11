@@ -109,18 +109,32 @@ def adaptation_mape_controller(d):
         f.write('endmodule\n\n')
 
 
-def knowledge():
+def knowledge(uncertainty_aware=False):
     with open(prism_file, 'a') as f:
         f.write('module Knowledge\n')
         f.write('  xhat : [0..N] init xstart;\n')
         f.write('  yhat : [0..N] init ystart;\n')
+        if uncertainty_aware:
+            for d in directions:
+                f.write(f"  {d}counterhat : [0..1] init 0;\n")
+        
         f.write('  step : [1..20] init 1;\n\n')
         f.write('  ready : [0..1] init 1;\n')
 
-        for d, effect in zip(directions, directions_effects):
-            f.write('  [{0}] ready=1 -> {1} & (ready\'=0);\n'.format(d, effect))
-
-        f.write('  [update] step>=c & ready=0 -> (xhat\'=x) & (yhat\'=y) & (step\'=1) & (ready\'=1);\n')
+        if uncertainty_aware:
+            for d, effect in zip(directions, directions_effects):
+                f.write(f'  [{d}] ready=1 -> {effect} & (ready\'=0) & ({d}counterhat\'=min({d}counterhat+1,1));\n\n')
+        else:
+            for d, effect in zip(directions, directions_effects):
+                f.write('  [{0}] ready=1 -> {1} & (ready\'=0);\n'.format(d, effect))
+                
+        if uncertainty_aware:
+            counter_reset=''
+            for d in directions:
+                counter_reset+=f' & ({d}counterhat\'=0)'
+            f.write('  [update] step>=c & ready=0 -> (xhat\'=x) & (yhat\'=y) & (step\'=1) & (ready\'=1)'+counter_reset+';\n')
+        else:
+            f.write('  [update] step>=c & ready=0 -> (xhat\'=x) & (yhat\'=y) & (step\'=1) & (ready\'=1);\n')
         f.write('  [skip_update] step<c & ready=0 -> (ready\'=1) & (step\'=step+1);\n')
         f.write('endmodule\n\n')
 
@@ -152,7 +166,7 @@ def read_params_from_file():
 
 
 # i depicts which map should be used
-def generate_model(i):
+def generate_model(i,uncertainty_aware=False):
     global prism_file
     prism_file = "Applications/EvoChecker-master/models/model_" + str(i) + ".prism"
     read_params_from_file()
@@ -166,7 +180,7 @@ def generate_model(i):
     preambel()
     robot()
     adaptation_mape_controller(d)
-    knowledge()
+    knowledge(uncertainty_aware)
     rewards()
 
     print("finished map " + str(i))

@@ -1,21 +1,30 @@
 import os
 from multiprocessing import Pool, cpu_count
-
+import shutil
 
 def run_task(args):
+    start_dir = os.getcwd()
     os.chdir('Applications/EvoChecker-master')
     os.environ['LD_LIBRARY_PATH'] = "libs/runtime"
-    i, rep = args
+    i, rep,suffix = args
+    
+    folder_to_delete = "data/ROBOT{0}_REP{1}{2}".format(i, rep, suffix)
+    if os.path.exists(folder_to_delete):
+        shutil.rmtree(folder_to_delete)
+        print(f"Deleted folder: {folder_to_delete}")
+    else:
+        print(f"Folder not found, skipping delete: {folder_to_delete}")
+        
     path = "./{0}_{1}.properties".format(str(i), str(rep))
     open(path, "w").close()
     with open(path, 'a') as f:
-        f.write("PROBLEM = ROBOT{0}_REP{1}\n".format(str(i), str(rep)))
+        f.write("PROBLEM = ROBOT{0}_REP{1}{2}\n".format(str(i), str(rep),suffix))
         f.write("       MODEL_TEMPLATE_FILE = models/model_{0}_umc.prism\n".format(str(i)))
         f.write("       PROPERTIES_FILE = robot.pctl\n")
         f.write("       ALGORITHM = NSGAII\n")
         f.write("       POPULATION_SIZE = 100\n")
         f.write("       MAX_EVALUATIONS = 4000\n")
-        f.write("       PROCESSORS = 1\n")
+        f.write("       PROCESSORS = {0}\n".format(str(cpu_count())))
         f.write("       PLOT_PARETO_FRONT = false\n")
         f.write("       VERBOSE = true\n")
         f.write("       LOAD_SEED = true\n")
@@ -24,17 +33,19 @@ def run_task(args):
     # Note: INIT_PORT doesn't have an effect https://github.com/gerasimou/EvoChecker/issues/11
 
     os.system('java -jar ./target/EvoChecker-1.1.0.jar ' + path)
+    os.chdir(start_dir)
 
 
-def run(map_, replications):
+def run(map_, replications,suffix=""):
     # Number of parallel processes
-    num_processes = cpu_count()
+    num_processes = 1#cpu_count()
 
     # available maps
     rep_values = range(replications)  # 10 replications
 
     # Create a list of tuples with all combinations of i and rep
-    tasks = [(map_, rep) for rep in rep_values]
+    tasks = [(map_, rep,suffix) for rep in rep_values]
 
-    with Pool(num_processes) as pool:
-        pool.map(run_task, tasks)
+    run_task(tasks[0])
+    """with Pool(num_processes) as pool:
+        pool.map(run_task, tasks)"""
