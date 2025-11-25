@@ -1,4 +1,0 @@
-//Objective, max
-R{"service"} =? [F counter=iterations]
-//Objective, min
-R{"cost"} =? [F counter=iterations]
