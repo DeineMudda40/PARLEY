@@ -1,0 +1,3 @@
+[submodule "Applications/Evochecker-master"]
+	path = Applications/Evochecker-master
+	url = https://github.com/gerasimou/EvoChecker.git
