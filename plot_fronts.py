@@ -89,8 +89,8 @@ def plot_pareto_front_aware(m=10, replication=0, header=True):
     plt.ylabel('Cost')
     output_filename = f'robot{m}_rep{replication}'
     plt.title(output_filename)
-    plt.xlim(1, 0.2)
-    plt.ylim(0, 200)
+    #plt.xlim(0.3, 0.0)
+    #plt.ylim(0, 100)
     plt.legend()
     plt.grid(True)
 

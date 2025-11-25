@@ -6,7 +6,7 @@ startX = 0
 startY = 0
 targetX = 4
 targetY = 4
-p = 0.01
+p = 0.033
 directions = ['west', 'east', 'south', 'north']
 directions_effects = ['(xhat\'=max(xhat-1, 0))', '(xhat\'=min(xhat+1, N))', '(yhat\'=max(yhat-1, 0))', '(yhat\'=min(yhat+1, N))']
 obstacles = []
@@ -115,24 +115,20 @@ def knowledge(uncertainty_aware=False):
         f.write('  xhat : [0..N] init xstart;\n')
         f.write('  yhat : [0..N] init ystart;\n')
         if uncertainty_aware:
-            for d in directions:
-                f.write(f"  {d}counterhat : [0..1] init 0;\n")
+            f.write(f"  stepcounterhat : [0..6] init 0;\n")
         
         f.write('  step : [1..20] init 1;\n\n')
         f.write('  ready : [0..1] init 1;\n')
 
         if uncertainty_aware:
             for d, effect in zip(directions, directions_effects):
-                f.write(f'  [{d}] ready=1 -> {effect} & (ready\'=0) & ({d}counterhat\'=min({d}counterhat+1,1));\n\n')
+                f.write(f'  [{d}] ready=1 -> {effect} & (ready\'=0) & (stepcounterhat\'=min(stepcounterhat+1,6));\n\n')
         else:
             for d, effect in zip(directions, directions_effects):
-                f.write('  [{0}] ready=1 -> {1} & (ready\'=0);\n'.format(d, effect))
+                f.write(f'  [{d}] ready=1 -> {effect} & (ready\'=0);\n\n')
                 
         if uncertainty_aware:
-            counter_reset=''
-            for d in directions:
-                counter_reset+=f' & ({d}counterhat\'=0)'
-            f.write('  [update] step>=c & ready=0 -> (xhat\'=x) & (yhat\'=y) & (step\'=1) & (ready\'=1)'+counter_reset+';\n')
+            f.write('  [update] step>=c & ready=0 -> (xhat\'=x) & (yhat\'=y) & (step\'=1) & (ready\'=1) & (stepcounterhat\'=0);\n')
         else:
             f.write('  [update] step>=c & ready=0 -> (xhat\'=x) & (yhat\'=y) & (step\'=1) & (ready\'=1);\n')
         f.write('  [skip_update] step<c & ready=0 -> (ready\'=1) & (step\'=step+1);\n')

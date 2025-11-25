@@ -82,7 +82,7 @@ def run_unaware(i):
     __modify_properties()
     # maps()
     models(i)
-    # baseline(i)
+    baseline(i)
     evo_checker(i, "_PLUS")
 
 
@@ -90,14 +90,15 @@ def run_aware(i):
     __modify_properties()
 
     models(i, uncertainty_aware=True)
-    evo_checker(i, "_TEST")
+    #baseline(i)
+    evo_checker(i, "_UA")
 
 
 def main2():
     # maps()
     for i in range(10, 11):
-        # run_unaware(i)
-        run_aware(i)
+        run_unaware(i)
+        #run_aware(i)
         fronts(i)
 
 
@@ -108,7 +109,7 @@ def main():
         models(i)
         # baseline(i)
         evo_checker(i, "_Hello")
-        fronts(i)
+        #fronts(i)
         # print(f'Finished map {i}')
     # evaluation
     # evaluation.main()
