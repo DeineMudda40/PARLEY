@@ -3,7 +3,7 @@
     "startY": 0,
     "targetX": 9,
     "targetY": 9,
-    "p": 0.01,
+    "p": 0.033,
     "updates": [
         5
     ],

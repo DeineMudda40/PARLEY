@@ -6,9 +6,21 @@ startX = 0
 startY = 0
 targetX = 4
 targetY = 4
-p = 0.033
-directions = ['west', 'east', 'south', 'north']
-directions_effects = ['(xhat\'=max(xhat-1, 0))', '(xhat\'=min(xhat+1, N))', '(yhat\'=max(yhat-1, 0))', '(yhat\'=min(yhat+1, N))']
+state_count = 6
+findme = 0.033
+directions = ["west", "east", "south", "north"]
+directions_effects = [
+    "(xhat'=max(xhat-1, 0))",
+    "(xhat'=min(xhat+1, N))",
+    "(yhat'=max(yhat-1, 0))",
+    "(yhat'=min(yhat+1, N))",
+]
+directions_effects_ua = [
+    "(xhattest'=max(xhattest-1, 0))",
+    "(xhattest'=min(xhattest+1, N))",
+    "(yhattest'=max(yhattest-1, 0))",
+    "(yhattest'=min(yhattest+1, N))",
+]
 obstacles = []
 
 updates = [5]  # cost of updates
@@ -25,7 +37,7 @@ period = 1
 
 def build_map(filename):
     n = []
-    with open(filename, 'r') as file:
+    with open(filename, "r") as file:
         csv_reader = csv.reader(file)
         for row in csv_reader:
             n.append(row)
@@ -45,124 +57,190 @@ def build_map(filename):
 
 
 def preambel():
-    with open(prism_file, 'a') as f:
-        f.write('dtmc\n')
-        f.write(f'const int c = {period};\n')
-        f.write('const int N=' + str(mapSize - 1) + ';\n')
-        f.write('const int xstart = ' + str(startX) + ';\n')
-        f.write('const int ystart = ' + str(startY) + ';\n')
-        f.write('const int xtarget = ' + str(targetX) + ';\n')
-        f.write('const int ytarget = ' + str(targetY) + ';\n')
-        f.write('const double p = ' + str(p) + ';\n \n')
+    with open(prism_file, "a") as f:
+        f.write("dtmc\n")
+        f.write(f"const int c = {period};\n")
+        f.write("const int N=" + str(mapSize - 1) + ";\n")
+        f.write("const int xstart = " + str(startX) + ";\n")
+        f.write("const int ystart = " + str(startY) + ";\n")
+        f.write("const int xtarget = " + str(targetX) + ";\n")
+        f.write("const int ytarget = " + str(targetY) + ";\n")
+        f.write("const double p = " + str(findme) + ";\n \n")
+        f.write("const int state_count = " + str(state_count) + ";\n")
         # formula for obstacles
-        f.write('formula hasCrashed = (1=0) ')
+        f.write("formula hasCrashed = (1=0) ")
         for x, y in obstacles:
-            f.write('| (x={0} & y={1}) '.format(str(x), str(y)))
-        f.write(';\n\n')
+            f.write("| (x={0} & y={1}) ".format(str(x), str(y)))
+        f.write(";\n\n")
 
 
 def robot():
-    with open(prism_file, 'a') as f:
-        f.write('module Robot \n')
-        f.write('  x : [0..N] init xstart;\n')
-        f.write('  y : [0..N] init ystart;\n')
-        f.write('  move_ready : [0..1] init 1;\n')
-        f.write('  crashed : [0..1] init 0;\n\n')
-        f.write('  [east] (move_ready=1) -> \n'
-                '    (1-3*p): (x\'=min(x+1, N)) & (move_ready\'=0) + \n'
-                '    p: (y\'=min(y+1, N)) & (move_ready\'=0) + \n'
-                '    p: (y\'=max(y-1, 0)) & (move_ready\'=0) + \n'
-                '    p: (x\'=max(x-1, 0)) & (move_ready\'=0); \n')
+    with open(prism_file, "a") as f:
+        f.write("module Robot \n")
+        f.write("  x : [0..N] init xstart;\n")
+        f.write("  y : [0..N] init ystart;\n")
+        f.write("  move_ready : [0..1] init 1;\n")
+        f.write("  crashed : [0..1] init 0;\n\n")
+        f.write(
+            "  [east] (move_ready=1) -> \n"
+            "    (1-3*p): (x'=min(x+1, N)) & (move_ready'=0) + \n"
+            "    p: (y'=min(y+1, N)) & (move_ready'=0) + \n"
+            "    p: (y'=max(y-1, 0)) & (move_ready'=0) + \n"
+            "    p: (x'=max(x-1, 0)) & (move_ready'=0); \n"
+        )
 
-        f.write('  [west] (move_ready=1) -> \n'
-                '    p: (x\'=min(x+1, N)) & (move_ready\'=0) + \n'
-                '    p: (y\'=min(y+1, N)) & (move_ready\'=0) + \n'
-                '    p: (y\'=max(y-1, 0)) & (move_ready\'=0) + \n'
-                '    (1-3*p): (x\'=max(x-1, 0)) & (move_ready\'=0); \n')
+        f.write(
+            "  [west] (move_ready=1) -> \n"
+            "    p: (x'=min(x+1, N)) & (move_ready'=0) + \n"
+            "    p: (y'=min(y+1, N)) & (move_ready'=0) + \n"
+            "    p: (y'=max(y-1, 0)) & (move_ready'=0) + \n"
+            "    (1-3*p): (x'=max(x-1, 0)) & (move_ready'=0); \n"
+        )
 
-        f.write('  [north] (move_ready=1) -> \n'
-                '    p: (x\'=min(x+1, N)) & (move_ready\'=0) + \n'
-                '    (1-3*p): (y\'=min(y+1, N)) & (move_ready\'=0) + \n'
-                '    p: (y\'=max(y-1, 0)) & (move_ready\'=0) + \n'
-                '    p: (x\'=max(x-1, 0)) & (move_ready\'=0); \n')
+        f.write(
+            "  [north] (move_ready=1) -> \n"
+            "    p: (x'=min(x+1, N)) & (move_ready'=0) + \n"
+            "    (1-3*p): (y'=min(y+1, N)) & (move_ready'=0) + \n"
+            "    p: (y'=max(y-1, 0)) & (move_ready'=0) + \n"
+            "    p: (x'=max(x-1, 0)) & (move_ready'=0); \n"
+        )
 
-        f.write('  [south] (move_ready=1) -> \n'
-                '    p: (x\'=min(x+1, N)) & (move_ready\'=0) + \n'
-                '    p: (y\'=min(y+1, N)) & (move_ready\'=0) + \n'
-                '    (1-3*p): (y\'=max(y-1, 0)) & (move_ready\'=0) + \n'
-                '    p: (x\'=max(x-1, 0)) & (move_ready\'=0); \n')
-        f.write('\n')
-        f.write('  [check] (move_ready=0) & hasCrashed -> (crashed\'=1) & (move_ready\'=1); \n')
-        f.write('  [check] (move_ready=0) & !hasCrashed -> (move_ready\'=1); \n')
-        f.write('endmodule\n\n')
+        f.write(
+            "  [south] (move_ready=1) -> \n"
+            "    p: (x'=min(x+1, N)) & (move_ready'=0) + \n"
+            "    p: (y'=min(y+1, N)) & (move_ready'=0) + \n"
+            "    (1-3*p): (y'=max(y-1, 0)) & (move_ready'=0) + \n"
+            "    p: (x'=max(x-1, 0)) & (move_ready'=0); \n"
+        )
+        f.write("\n")
+        f.write(
+            "  [check] (move_ready=0) & hasCrashed -> (crashed'=1) & (move_ready'=1); \n"
+        )
+        f.write("  [check] (move_ready=0) & !hasCrashed -> (move_ready'=1); \n")
+        f.write("endmodule\n\n")
 
 
-def adaptation_mape_controller(d):
-    with open(prism_file, 'a') as f:
-        f.write('module Adaptation_MAPE_controller\n')
+def adaptation_mape_controller(d, uncertainty_aware):
+    with open(prism_file, "a") as f:
+        f.write("module Adaptation_MAPE_controller\n")
         for x in range(mapSize):
             for y in range(mapSize):
                 direction = int(d[y][x])
                 if direction < 4:
-                    f.write('  [{0}] '.format(directions[direction]))
-                    f.write('(xhat={0}) & (yhat={1}) -> true;\n'.format(str(x), str(y)))
-        f.write('endmodule\n\n')
+                    f.write("  [{0}] ".format(directions[direction]))
+                    if uncertainty_aware:
+                        f.write(
+                            "(xhattest={0}) & (yhattest={1}) -> true;\n".format(
+                                str(x), str(y)
+                            )
+                        )
+                    else:
+                        f.write(
+                            "(xhat={0}) & (yhat={1}) -> true;\n".format(str(x), str(y))
+                        )
+        f.write("endmodule\n\n")
+
+
+def state_transitions(uncertainty_aware):
+    with open(prism_file, "a") as f:
+        for i in range(state_count):
+            for x in range(mapSize):
+                for y in range(mapSize):
+                    f.write(
+                        f"evolve int obs_{i+1}_{x}_{y}_transition [1..{state_count}];\n"
+                    )
+        f.write("\n")
+
+        for d in directions:
+            for i in range(state_count):
+                f.write(f"evolve int action_{d}_{i}_transition [1..{state_count}];\n")
+        f.write("\n")
+
+        f.write("module State_Transitions\n")
+        if uncertainty_aware:
+            f.write(f"  state_hat : [1..state_count] init 1;\n")
+
+        for i in range(state_count):
+            for x in range(mapSize):
+                for y in range(mapSize):
+                    f.write(
+                        f"  [update_belief] (state_hat={i+1}) & (xhattest={x}) & (yhattest={y}) -> (state_hat'=obs_{i+1}_{x}_{y}_transition);\n"
+                    )
+
+        for d in directions:
+            for i in range(state_count):
+                f.write(
+                    f"  [{d}] (state_hat={i+1}) -> (state_hat'=action_{d}_{i}_transition);\n"
+                )
+
+        f.write("endmodule\n\n")
 
 
 def knowledge(uncertainty_aware=False):
-    with open(prism_file, 'a') as f:
-        f.write('module Knowledge\n')
-        f.write('  xhat : [0..N] init xstart;\n')
-        f.write('  yhat : [0..N] init ystart;\n')
+    with open(prism_file, "a") as f:
+        f.write("module Knowledge\n")
         if uncertainty_aware:
-            f.write(f"  stepcounterhat : [0..6] init 0;\n")
-        
-        f.write('  step : [1..20] init 1;\n\n')
-        f.write('  ready : [0..1] init 1;\n')
+            f.write("  xhattest : [0..N] init xstart;\n")
+            f.write("  yhattest : [0..N] init ystart;\n")
+        else:
+            f.write("  xhat : [0..N] init xstart;\n")
+            f.write("  yhat : [0..N] init ystart;\n")
+
+        f.write("  step : [1..20] init 1;\n\n")
 
         if uncertainty_aware:
-            for d, effect in zip(directions, directions_effects):
-                f.write(f'  [{d}] ready=1 -> {effect} & (ready\'=0) & (stepcounterhat\'=min(stepcounterhat+1,6));\n\n')
+            f.write("  ready : [0..2] init 1;\n")
         else:
-            for d, effect in zip(directions, directions_effects):
-                f.write(f'  [{d}] ready=1 -> {effect} & (ready\'=0);\n\n')
-                
+            f.write("  ready : [0..1] init 1;\n")
+
         if uncertainty_aware:
-            f.write('  [update] step>=c & ready=0 -> (xhat\'=x) & (yhat\'=y) & (step\'=1) & (ready\'=1) & (stepcounterhat\'=0);\n')
+            for d, effect in zip(directions, directions_effects_ua):
+                f.write(f"  [{d}] ready=1 -> {effect} & (ready'=0);\n\n")
         else:
-            f.write('  [update] step>=c & ready=0 -> (xhat\'=x) & (yhat\'=y) & (step\'=1) & (ready\'=1);\n')
-        f.write('  [skip_update] step<c & ready=0 -> (ready\'=1) & (step\'=step+1);\n')
-        f.write('endmodule\n\n')
+            for d, effect in zip(directions, directions_effects):
+                f.write(f"  [{d}] ready=1 -> {effect} & (ready'=0);\n\n")
+
+        if uncertainty_aware:
+            f.write(
+                "  [update] step>=c & ready=0 -> (xhattest'=x) & (yhattest'=y) & (step'=1) & (ready'=2);\n"
+            )
+            f.write("  [update_belief] ready=2 -> (ready'=1);\n")
+        else:
+            f.write(
+                "  [update] step>=c & ready=0 -> (xhat'=x) & (yhat'=y) & (step'=1) & (ready'=1);\n"
+            )
+        f.write("  [skip_update] step<c & ready=0 -> (ready'=1) & (step'=step+1);\n")
+        f.write("endmodule\n\n")
 
 
 def rewards():
-    with open(prism_file, 'a') as f:
-        f.write('rewards \"cost\" \n')
-        f.write('  [east] true : 1; \n')
-        f.write('  [west] true : 1; \n')
-        f.write('  [north] true : 1; \n')
-        f.write('  [south] true : 1; \n')
-        f.write('  [update] true : 5;\n')
-        f.write('endrewards \n\n')
+    with open(prism_file, "a") as f:
+        f.write('rewards "cost" \n')
+        f.write("  [east] true : 1; \n")
+        f.write("  [west] true : 1; \n")
+        f.write("  [north] true : 1; \n")
+        f.write("  [south] true : 1; \n")
+        f.write("  [update] true : 5;\n")
+        f.write("endrewards \n\n")
 
         # f.write('label \"mission_success\" = (x=xtarget) & (y=ytarget) & (!hasCrashed);\n')
 
 
 def read_params_from_file():
-    with open('input.json', 'r') as file:
+    with open("input.json", "r") as file:
         params = json.load(file)
-    global startX, startY, targetX, targetY, map_file, p, updates
+    global startX, startY, targetX, targetY, map_file, findme, updates
     startX = params["startX"]
     startY = params["startY"]
     targetX = params["targetX"]
     targetY = params["targetY"]
-    p = params["p"]
+    findme = params["p"]
     map_file = params["map_file"]
     updates = params["updates"]
 
 
 # i depicts which map should be used
-def generate_model(i,uncertainty_aware=False):
+def generate_model(i, uncertainty_aware=False):
     global prism_file
     prism_file = "Applications/EvoChecker-master/models/model_" + str(i) + ".prism"
     read_params_from_file()
@@ -175,8 +253,10 @@ def generate_model(i,uncertainty_aware=False):
     open(prism_file, "w").close()
     preambel()
     robot()
-    adaptation_mape_controller(d)
+    adaptation_mape_controller(d, uncertainty_aware)
     knowledge(uncertainty_aware)
+    if uncertainty_aware:
+        state_transitions(uncertainty_aware)
     rewards()
 
     print("finished map " + str(i))

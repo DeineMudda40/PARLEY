@@ -81,7 +81,7 @@ def __modify_properties():
 def run_unaware(i):
     __modify_properties()
     # maps()
-    models(i)
+    models(i, uncertainty_aware=False)
     baseline(i)
     evo_checker(i, "_PLUS")
 
@@ -95,16 +95,16 @@ def run_aware(i):
 
 
 def main2():
-    # maps()
+    maps()
     for i in range(10, 11):
         run_unaware(i)
-        #run_aware(i)
+        run_aware(i)
         fronts(i)
 
 
 def main():
     __modify_properties()
-    # maps()
+    maps()
     for i in range(10, 11):
         models(i)
         # baseline(i)

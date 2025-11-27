@@ -3,7 +3,7 @@ from multiprocessing import Pool, cpu_count
 import shutil
 
 
-def run_task(args):
+def run_task(args,uncertainty_aware=False):
     start_dir = os.getcwd()
     os.chdir("Applications/EvoChecker-master")
     os.environ["LD_LIBRARY_PATH"] = "libs/runtime"
@@ -23,10 +23,10 @@ def run_task(args):
         f.write(
             "       MODEL_TEMPLATE_FILE = models/model_{0}_umc.prism\n".format(str(i))
         )
-        f.write("       PROPERTIES_FILE = robot.pctl\n")
+        f.write("       PROPERTIES_FILE = ../../robot.pctl\n")
         f.write("       ALGORITHM = NSGAII\n")
-        f.write("       POPULATION_SIZE = 200\n")
-        f.write("       MAX_EVALUATIONS = 20000\n")
+        f.write("       POPULATION_SIZE = 100\n")
+        f.write("       MAX_EVALUATIONS = 10000\n")
         f.write(f"       PROCESSORS = {cpu_count()}\n")  # cpu_count()
         f.write("       PLOT_PARETO_FRONT = false\n")
         f.write("       VERBOSE = true\n")
@@ -50,7 +50,7 @@ def run_task(args):
     os.chdir(start_dir)
 
 
-def run(map_, replications, suffix=""):
+def run(map_, replications, suffix="",uncertainty_aware=False):
     # Number of parallel processes
     num_processes = 1  # cpu_count()
 
@@ -60,6 +60,6 @@ def run(map_, replications, suffix=""):
     # Create a list of tuples with all combinations of i and rep
     tasks = [(map_, rep, suffix) for rep in rep_values]
 
-    run_task(tasks[0])
+    run_task(tasks[0],uncertainty_aware)
     """with Pool(num_processes) as pool:
         pool.map(run_task, tasks)"""
