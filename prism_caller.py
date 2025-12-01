@@ -1,6 +1,7 @@
 import os
 import sys
 import subprocess
+import re
 
 prism_bin = 'Applications/prism/bin/prism' if sys.platform == "darwin" else 'prism'  # use local prism if not OS X
 properties = ('\'P=?[F(x=xtarget & y=ytarget & crashed=0)]\'', '\'R{"cost"}=?[C<=200]\'')
@@ -8,18 +9,17 @@ properties = ('\'P=?[F(x=xtarget & y=ytarget & crashed=0)]\'', '\'R{"cost"}=?[C<
 command = f'{prism_bin} -maxiters 50000 out.prism -pf '
 
 
-def compute_baseline(infile, period):
-    with open(infile, 'r') as file:
-        with open('out.prism', 'w') as tmp_file:
-            for line in file:
-                if 'const int c' not in line:
-                    tmp_file.write(line)
-                else:
-                    tmp_file.write(f'const int c = {period};\n')
-                # elif 'c1' not in line:
-                #     tmp_file.write(f'const int c2 = {period};\n')
-                # else:
-                #     tmp_file.write(f'const int c1 = {period};\n')
+def compute_baseline(infile, period, outfile="out.prism"):
+    pattern = re.compile(r"^\s*const\s+int\s+(c_[A-Za-z_]\w*)\s*=\s*[-0-9]+\s*;")
+
+    with open(infile, "r") as fi, open(outfile, "w") as fo:
+        for line in fi:
+            m = pattern.match(line)
+            if m:
+                const_name = m.group(1)  # e.g. "c_gps"
+                fo.write(f"const int {const_name} = {period};\n")
+            else:
+                fo.write(line)
     resultline = ''
     for prop, i in zip(properties, range(0, len(properties))):
         # Execute the command and capture the output

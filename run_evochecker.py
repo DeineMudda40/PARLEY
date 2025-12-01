@@ -32,7 +32,6 @@ def run_task(args,uncertainty_aware=False):
         f.write("       VERBOSE = true\n")
         f.write("       LOAD_SEED = true\n")
         f.write("       SEED_FILE = data/ROBOT10/Front\n")
-        f.write("       MODEL_CHECKER_ARGS = -verbose\n")
         f.write("       EVOCHECKER_TYPE = NORMAL\n")
         f.write("       EVOCHECKER_ENGINE = PRISM\n")
         f.write("       INIT_PORT = 55{0}\n".format(str(i)))

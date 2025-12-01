@@ -4,8 +4,41 @@
     "targetX": 9,
     "targetY": 9,
     "p": 0.033,
-    "updates": [
+    "update_names": [
+        "gps"
+    ],
+    "update_costs": [
         5
     ],
-    "map_file": "map.csv"
+    "fix_cs": [
+        5
+    ],
+    "update_effects": [
+        "(xhat'=x) & (yhat'=y)"
+    ],
+    "period": 1,
+    "action_names": [
+        "west",
+        "east",
+        "south",
+        "north"
+    ],
+    "action_knowledge_effects": [
+        "(xhat'=max(xhat-1, 0))",
+        "(xhat'=min(xhat+1, N))",
+        "(yhat'=max(yhat-1, 0))",
+        "(yhat'=min(yhat+1, N))"
+    ],
+    "action_effects": [
+        "    p: (x'=min(x+1, N)) & (move_ready'=0) + \n    p: (y'=min(y+1, N)) & (move_ready'=0) + \n    p: (y'=max(y-1, 0)) & (move_ready'=0) + \n    (1-3*p): (x'=max(x-1, 0)) & (move_ready'=0); \n",
+        "    (1-3*p): (x'=min(x+1, N)) & (move_ready'=0) + \n    p: (y'=min(y+1, N)) & (move_ready'=0) + \n    p: (y'=max(y-1, 0)) & (move_ready'=0) + \n    p: (x'=max(x-1, 0)) & (move_ready'=0); \n",
+        "    p: (x'=min(x+1, N)) & (move_ready'=0) + \n    p: (y'=min(y+1, N)) & (move_ready'=0) + \n    (1-3*p): (y'=max(y-1, 0)) & (move_ready'=0) + \n    p: (x'=max(x-1, 0)) & (move_ready'=0); \n",
+        "    p: (x'=min(x+1, N)) & (move_ready'=0) + \n    (1-3*p): (y'=min(y+1, N)) & (move_ready'=0) + \n    p: (y'=max(y-1, 0)) & (move_ready'=0) + \n    p: (x'=max(x-1, 0)) & (move_ready'=0); \n"
+    ],
+    "action_costs": [
+        1,
+        1,
+        1,
+        1
+    ]
 }

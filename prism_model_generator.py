@@ -1,117 +1,78 @@
 import csv
 import json
 import dijkstra
-
-startX = 0
-startY = 0
-targetX = 4
-targetY = 4
-state_count = 6
-findme = 0.033
-directions = ["west", "east", "south", "north"]
-directions_effects = [
-    "(xhat'=max(xhat-1, 0))",
-    "(xhat'=min(xhat+1, N))",
-    "(yhat'=max(yhat-1, 0))",
-    "(yhat'=min(yhat+1, N))",
-]
-directions_effects_ua = [
-    "(xhattest'=max(xhattest-1, 0))",
-    "(xhattest'=min(xhattest+1, N))",
-    "(yhattest'=max(yhattest-1, 0))",
-    "(yhattest'=min(yhattest+1, N))",
-]
-obstacles = []
-
-updates = [5]  # cost of updates
-
-map_file = "maps/map_1.csv"
-map_data = []
-mapSize = len(map_data)
-corridor = 1
-
-prism_file = ""
-# period of updates
-period = 1
+from _io import TextIOWrapper
 
 
-def build_map(filename):
-    n = []
-    with open(filename, "r") as file:
-        csv_reader = csv.reader(file)
-        for row in csv_reader:
-            n.append(row)
-    global mapSize
-    global map_data
-    mapSize = len(n)
-    transposed = list(zip(*n))  # Transpose the matrix
-    map_data = [row[::-1] for row in transposed]  # Reverse the order of each row
-    global obstacles
-    obstacles = []
-    for x in range(0, mapSize):
-        for y in range(0, mapSize):
-            if int(map_data[x][y]) > 9:
-                obstacles.append([x, y])
-    # for j in range(0, mapSize):
-    #    map_data.append([i[j] for i in n])
+class Robot_Problem:
+    def __init__(self, map_params, map_array):
+        self.start_pos = (map_params["startX"], map_params["startY"])
+        self.target_pos = (map_params["targetX"], map_params["targetY"])
+        self.p = map_params["p"]
+        self.fix_cs=map_params["fix_cs"]
 
+        self.update_names = map_params["update_names"]
+        self.update_costs = map_params["update_costs"]
+        self.update_effects = map_params["update_effects"]
 
-def preambel():
-    with open(prism_file, "a") as f:
+        self.action_names = map_params["action_names"]
+        self.action_knowledge_effects = map_params["action_knowledge_effects"]
+        self.action_effects = map_params["action_effects"]
+        self.action_costs = map_params["action_costs"]
+
+        self.mapSize = len(map_array)
+
+        transposed = list(zip(*map_array))  # Transpose the matrix
+        self.map_data = [
+            row[::-1] for row in transposed
+        ]  # Reverse the order of each row
+
+        self.obstacles = []
+        for x in range(0, self.mapSize):
+            for y in range(0, self.mapSize):
+                if int(self.map_data[x][y]) > 9:
+                    self.obstacles.append([x, y])
+
+        _d = dijkstra.compute_directions(self.map_data, self.target_pos)
+        self.d = list(zip(*_d))
+
+    def to_file(self, prism_file):
+        open(prism_file, "w").close()
+
+        with open(prism_file, "a") as f:
+            self.preambel(f)
+            self.robot(f)
+            self.adaptation_mape_controller(f)
+            self.knowledge(f)
+            self.rewards(f)
+
+        print("Finished map!")
+
+    def preambel(self, f: TextIOWrapper):
         f.write("dtmc\n")
-        f.write(f"const int c = {period};\n")
-        f.write("const int N=" + str(mapSize - 1) + ";\n")
-        f.write("const int xstart = " + str(startX) + ";\n")
-        f.write("const int ystart = " + str(startY) + ";\n")
-        f.write("const int xtarget = " + str(targetX) + ";\n")
-        f.write("const int ytarget = " + str(targetY) + ";\n")
-        f.write("const double p = " + str(findme) + ";\n \n")
-        f.write("const int state_count = " + str(state_count) + ";\n")
+        for update_name,fc in zip(self.update_names,self.fix_cs):
+            f.write(f"const int c_{update_name} = {fc};\n")
+        f.write(f"const int N = {self.mapSize - 1};\n")
+        f.write(f"const int xstart = {self.start_pos[0]};\n")
+        f.write(f"const int ystart = {self.start_pos[1]};\n")
+        f.write(f"const int xtarget = {self.target_pos[0]};\n")
+        f.write(f"const int ytarget = {self.target_pos[1]};\n")
+        f.write(f"const double p = {round(self.p,3)};\n")
         # formula for obstacles
         f.write("formula hasCrashed = (1=0) ")
-        for x, y in obstacles:
+        for x, y in self.obstacles:
             f.write("| (x={0} & y={1}) ".format(str(x), str(y)))
         f.write(";\n\n")
 
-
-def robot():
-    with open(prism_file, "a") as f:
+    def robot(self, f: TextIOWrapper):
         f.write("module Robot \n")
         f.write("  x : [0..N] init xstart;\n")
         f.write("  y : [0..N] init ystart;\n")
         f.write("  move_ready : [0..1] init 1;\n")
         f.write("  crashed : [0..1] init 0;\n\n")
-        f.write(
-            "  [east] (move_ready=1) -> \n"
-            "    (1-3*p): (x'=min(x+1, N)) & (move_ready'=0) + \n"
-            "    p: (y'=min(y+1, N)) & (move_ready'=0) + \n"
-            "    p: (y'=max(y-1, 0)) & (move_ready'=0) + \n"
-            "    p: (x'=max(x-1, 0)) & (move_ready'=0); \n"
-        )
+        for action_name,action_effect in zip(self.action_names,self.action_effects):
+            f.write(f"[{action_name}] (move_ready=1) -> \n {action_effect}\n")
 
-        f.write(
-            "  [west] (move_ready=1) -> \n"
-            "    p: (x'=min(x+1, N)) & (move_ready'=0) + \n"
-            "    p: (y'=min(y+1, N)) & (move_ready'=0) + \n"
-            "    p: (y'=max(y-1, 0)) & (move_ready'=0) + \n"
-            "    (1-3*p): (x'=max(x-1, 0)) & (move_ready'=0); \n"
-        )
-
-        f.write(
-            "  [north] (move_ready=1) -> \n"
-            "    p: (x'=min(x+1, N)) & (move_ready'=0) + \n"
-            "    (1-3*p): (y'=min(y+1, N)) & (move_ready'=0) + \n"
-            "    p: (y'=max(y-1, 0)) & (move_ready'=0) + \n"
-            "    p: (x'=max(x-1, 0)) & (move_ready'=0); \n"
-        )
-
-        f.write(
-            "  [south] (move_ready=1) -> \n"
-            "    p: (x'=min(x+1, N)) & (move_ready'=0) + \n"
-            "    p: (y'=min(y+1, N)) & (move_ready'=0) + \n"
-            "    (1-3*p): (y'=max(y-1, 0)) & (move_ready'=0) + \n"
-            "    p: (x'=max(x-1, 0)) & (move_ready'=0); \n"
-        )
         f.write("\n")
         f.write(
             "  [check] (move_ready=0) & hasCrashed -> (crashed'=1) & (move_ready'=1); \n"
@@ -119,144 +80,77 @@ def robot():
         f.write("  [check] (move_ready=0) & !hasCrashed -> (move_ready'=1); \n")
         f.write("endmodule\n\n")
 
-
-def adaptation_mape_controller(d, uncertainty_aware):
-    with open(prism_file, "a") as f:
+    def adaptation_mape_controller(self, f: TextIOWrapper):
         f.write("module Adaptation_MAPE_controller\n")
-        for x in range(mapSize):
-            for y in range(mapSize):
-                direction = int(d[y][x])
+        for x in range(self.mapSize):
+            for y in range(self.mapSize):
+                direction = int(self.d[y][x])
                 if direction < 4:
-                    f.write("  [{0}] ".format(directions[direction]))
-                    if uncertainty_aware:
-                        f.write(
-                            "(xhattest={0}) & (yhattest={1}) -> true;\n".format(
-                                str(x), str(y)
-                            )
-                        )
-                    else:
-                        f.write(
-                            "(xhat={0}) & (yhat={1}) -> true;\n".format(str(x), str(y))
-                        )
+                    f.write(f"  [{self.action_names[direction]}] ")
+                    f.write(f"(xhat={x}) & (yhat={y}) -> true;\n")
         f.write("endmodule\n\n")
 
+    def knowledge(self, f: TextIOWrapper):
+        for name in self.update_names:
+            f.write(f"formula due_{name} = (ready=0) & (step>=c_{name});\n")
 
-def state_transitions(uncertainty_aware):
-    with open(prism_file, "a") as f:
-        for i in range(state_count):
-            for x in range(mapSize):
-                for y in range(mapSize):
-                    f.write(
-                        f"evolve int obs_{i+1}_{x}_{y}_transition [1..{state_count}];\n"
-                    )
-        f.write("\n")
-
-        for d in directions:
-            for i in range(state_count):
-                f.write(f"evolve int action_{d}_{i}_transition [1..{state_count}];\n")
-        f.write("\n")
-
-        f.write("module State_Transitions\n")
-        if uncertainty_aware:
-            f.write(f"  state_hat : [1..state_count] init 1;\n")
-
-        for i in range(state_count):
-            for x in range(mapSize):
-                for y in range(mapSize):
-                    f.write(
-                        f"  [update_belief] (state_hat={i+1}) & (xhattest={x}) & (yhattest={y}) -> (state_hat'=obs_{i+1}_{x}_{y}_transition);\n"
-                    )
-
-        for d in directions:
-            for i in range(state_count):
-                f.write(
-                    f"  [{d}] (state_hat={i+1}) -> (state_hat'=action_{d}_{i}_transition);\n"
-                )
-
-        f.write("endmodule\n\n")
-
-
-def knowledge(uncertainty_aware=False):
-    with open(prism_file, "a") as f:
         f.write("module Knowledge\n")
-        if uncertainty_aware:
-            f.write("  xhattest : [0..N] init xstart;\n")
-            f.write("  yhattest : [0..N] init ystart;\n")
-        else:
-            f.write("  xhat : [0..N] init xstart;\n")
-            f.write("  yhat : [0..N] init ystart;\n")
+        f.write("  xhat : [0..N] init xstart;\n")
+        f.write("  yhat : [0..N] init ystart;\n")
 
         f.write("  step : [1..20] init 1;\n\n")
+        f.write("  ready : [0..1] init 1;\n")
 
-        if uncertainty_aware:
-            f.write("  ready : [0..2] init 1;\n")
-        else:
-            f.write("  ready : [0..1] init 1;\n")
+        for d, effect in zip(self.action_names, self.action_knowledge_effects):
+            f.write(f"  [{d}] ready=1 -> {effect} & (ready'=0);\n\n")
 
-        if uncertainty_aware:
-            for d, effect in zip(directions, directions_effects_ua):
-                f.write(f"  [{d}] ready=1 -> {effect} & (ready'=0);\n\n")
-        else:
-            for d, effect in zip(directions, directions_effects):
-                f.write(f"  [{d}] ready=1 -> {effect} & (ready'=0);\n\n")
+        f.write("\n")
+        higher_due = []
+        for name, effect in zip(self.update_names, self.update_effects):
+            if higher_due:
+                f.write(
+                    f"  [update_{name}] due_{name} & !("
+                    + " | ".join(higher_due)
+                    + f") -> {effect} & (step'=1) & (ready'=1);\n"
+                )
+            else:
+                f.write(
+                    f"  [update_{name}] due_{name} -> {effect} & (step'=1) & (ready'=1);\n"
+                )
+            higher_due.append(f"due_{name}")
+        f.write("\n")
 
-        if uncertainty_aware:
+        if self.update_names:
             f.write(
-                "  [update] step>=c & ready=0 -> (xhattest'=x) & (yhattest'=y) & (step'=1) & (ready'=2);\n"
+                "  [skip_update] (ready=0) & !("
+                + " | ".join([f"due_{n}" for n in self.update_names])
+                + ") -> (ready'=1) & (step'=step+1);\n"
             )
-            f.write("  [update_belief] ready=2 -> (ready'=1);\n")
         else:
-            f.write(
-                "  [update] step>=c & ready=0 -> (xhat'=x) & (yhat'=y) & (step'=1) & (ready'=1);\n"
-            )
-        f.write("  [skip_update] step<c & ready=0 -> (ready'=1) & (step'=step+1);\n")
+            f.write("  [skip_update] (ready=0) -> (ready'=1) & (step'=step+1);\n")
         f.write("endmodule\n\n")
 
-
-def rewards():
-    with open(prism_file, "a") as f:
+    def rewards(self, f:TextIOWrapper):
         f.write('rewards "cost" \n')
-        f.write("  [east] true : 1; \n")
-        f.write("  [west] true : 1; \n")
-        f.write("  [north] true : 1; \n")
-        f.write("  [south] true : 1; \n")
-        f.write("  [update] true : 5;\n")
+        for action_name, action_cost in zip(self.action_names,self.action_costs):
+            f.write(f"  [{action_name}] true : {action_cost}; \n")
+        for update_name,update_cost in zip(self.update_names,self.update_costs):
+            f.write(f"  [update_{update_name}] true : {update_cost};\n")
         f.write("endrewards \n\n")
 
-        # f.write('label \"mission_success\" = (x=xtarget) & (y=ytarget) & (!hasCrashed);\n')
 
+def generate_robot_model(i, param_file="input.json"):
+    prism_file = f"Applications/EvoChecker-master/models/model_{i}.prism"
 
-def read_params_from_file():
-    with open("input.json", "r") as file:
+    with open(param_file, "r") as file:
         params = json.load(file)
-    global startX, startY, targetX, targetY, map_file, findme, updates
-    startX = params["startX"]
-    startY = params["startY"]
-    targetX = params["targetX"]
-    targetY = params["targetY"]
-    findme = params["p"]
-    map_file = params["map_file"]
-    updates = params["updates"]
 
+    map_array=[]
+    with open(f"maps/map_{i}.csv", "r") as file:
+        csv_reader = csv.reader(file)
+        for row in csv_reader:
+            map_array.append(row)
 
-# i depicts which map should be used
-def generate_model(i, uncertainty_aware=False):
-    global prism_file
-    prism_file = "Applications/EvoChecker-master/models/model_" + str(i) + ".prism"
-    read_params_from_file()
-    build_map("maps/map_" + str(i) + ".csv")
-    target_pos = (targetX, targetY)
-    _d = dijkstra.compute_directions(map_data, target_pos)
-    # we have to transpose the matrix in the end, similar to what we did when reading the map_data in the first place
-    d = list(zip(*_d))  # Transpose the matrix
+    rp=Robot_Problem(params,map_array)
 
-    open(prism_file, "w").close()
-    preambel()
-    robot()
-    adaptation_mape_controller(d, uncertainty_aware)
-    knowledge(uncertainty_aware)
-    if uncertainty_aware:
-        state_transitions(uncertainty_aware)
-    rewards()
-
-    print("finished map " + str(i))
+    rp.to_file(prism_file)

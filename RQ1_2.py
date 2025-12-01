@@ -17,18 +17,23 @@ def maps():
 
 
 def models(i, uncertainty_aware=False):
-    prism_model_generator.generate_model(i, uncertainty_aware)
+    prism_model_generator.generate_robot_model(i)
     infile = f"Applications/EvoChecker-master/models/model_{i}.prism"
     outfile = f"Applications/EvoChecker-master/models/model_{i}_umc.prism"
     os.makedirs(f"Applications/EvoChecker-master/data/ROBOT{i}", exist_ok=True)
     popfile = f"Applications/EvoChecker-master/data/ROBOT{i}/Front"
 
-    urc_synthesis.manipulate_prism_model(
+    """urc_synthesis.manipulate_prism_model(
         infile,
         outfile,
         baseline=False,
         initial_pop_file=popfile,
-    )
+        uncertainty_aware=uncertainty_aware
+    )"""
+    if uncertainty_aware:
+        urc_synthesis.ParleyUAMealy(infile,trigger_on_action=False,internal_states=3,obs_only_after_update=False).transform_file(infile,outfile,popfile)
+    else:
+        urc_synthesis.ParleyPlusURC(infile).transform_file(infile,outfile,popfile)
 
 
 def baseline(i):
@@ -91,15 +96,15 @@ def run_aware(i):
 
     models(i, uncertainty_aware=True)
     #baseline(i)
-    evo_checker(i, "_UA")
+    #evo_checker(i, "_UA")
 
 
 def main2():
-    maps()
+    #maps()
     for i in range(10, 11):
-        run_unaware(i)
+        #run_unaware(i)
         run_aware(i)
-        fronts(i)
+        #fronts(i)
 
 
 def main():
