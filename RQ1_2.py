@@ -96,7 +96,7 @@ def run_aware(i):
 
     models(i, uncertainty_aware=True)
     #baseline(i)
-    #evo_checker(i, "_UA")
+    evo_checker(i, "_UA")
 
 
 def main2():

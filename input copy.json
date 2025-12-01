@@ -5,16 +5,20 @@
     "targetY": 9,
     "p": 0.033,
     "update_names": [
-        "gps"
+        "gps",
+        "camera"
     ],
     "update_costs": [
-        5
+        5,
+        2
     ],
     "fix_cs": [
-        5
+        5,
+        3
     ],
     "update_effects": [
-        "(xhat'=x) & (yhat'=y)"
+        "(xhat'=x) & (yhat'=y)",
+        "(xhat'=x)"
     ],
     "period": 1,
     "action_names": [

@@ -9,7 +9,7 @@ class Robot_Problem:
         self.start_pos = (map_params["startX"], map_params["startY"])
         self.target_pos = (map_params["targetX"], map_params["targetY"])
         self.p = map_params["p"]
-        self.fix_cs=map_params["fix_cs"]
+        self.fix_cs = map_params["fix_cs"]
 
         self.update_names = map_params["update_names"]
         self.update_costs = map_params["update_costs"]
@@ -44,13 +44,14 @@ class Robot_Problem:
             self.robot(f)
             self.adaptation_mape_controller(f)
             self.knowledge(f)
+            self.turn(f)
             self.rewards(f)
 
         print("Finished map!")
 
     def preambel(self, f: TextIOWrapper):
         f.write("dtmc\n")
-        for update_name,fc in zip(self.update_names,self.fix_cs):
+        for update_name, fc in zip(self.update_names, self.fix_cs):
             f.write(f"const int c_{update_name} = {fc};\n")
         f.write(f"const int N = {self.mapSize - 1};\n")
         f.write(f"const int xstart = {self.start_pos[0]};\n")
@@ -68,16 +69,20 @@ class Robot_Problem:
         f.write("module Robot \n")
         f.write("  x : [0..N] init xstart;\n")
         f.write("  y : [0..N] init ystart;\n")
-        f.write("  move_ready : [0..1] init 1;\n")
         f.write("  crashed : [0..1] init 0;\n\n")
-        for action_name,action_effect in zip(self.action_names,self.action_effects):
-            f.write(f"[{action_name}] (move_ready=1) -> \n {action_effect}\n")
+        for action_name, action_effect in zip(self.action_names, self.action_effects):
+            f.write(f"[{action_name}] true -> \n {action_effect}\n")
 
         f.write("\n")
-        f.write(
-            "  [check] (move_ready=0) & hasCrashed -> (crashed'=1) & (move_ready'=1); \n"
-        )
-        f.write("  [check] (move_ready=0) & !hasCrashed -> (move_ready'=1); \n")
+        # Crash update synchronised with the update phase (t=1) or skip
+        for name in self.update_names:
+            f.write(f"  [update_{name}] hasCrashed  -> (crashed'=1);\n")
+            f.write(f"  [update_{name}] !hasCrashed -> (crashed'=crashed);\n")
+
+        if self.update_names:
+            f.write("  [skip_update] hasCrashed  -> (crashed'=1);\n")
+            f.write("  [skip_update] !hasCrashed -> (crashed'=crashed);\n")
+
         f.write("endmodule\n\n")
 
     def adaptation_mape_controller(self, f: TextIOWrapper):
@@ -92,51 +97,63 @@ class Robot_Problem:
 
     def knowledge(self, f: TextIOWrapper):
         for name in self.update_names:
-            f.write(f"formula due_{name} = (ready=0) & (step>=c_{name});\n")
+            f.write(f"formula due_{name} = (step>=c_{name});\n")
 
         f.write("module Knowledge\n")
         f.write("  xhat : [0..N] init xstart;\n")
         f.write("  yhat : [0..N] init ystart;\n")
-
         f.write("  step : [1..20] init 1;\n\n")
-        f.write("  ready : [0..1] init 1;\n")
 
         for d, effect in zip(self.action_names, self.action_knowledge_effects):
-            f.write(f"  [{d}] ready=1 -> {effect} & (ready'=0);\n\n")
+            f.write(f"  [{d}] true -> {effect};\n\n")
 
         f.write("\n")
         higher_due = []
         for name, effect in zip(self.update_names, self.update_effects):
             if higher_due:
-                f.write(
-                    f"  [update_{name}] due_{name} & !("
-                    + " | ".join(higher_due)
-                    + f") -> {effect} & (step'=1) & (ready'=1);\n"
-                )
+                cond_not_higher = " & !(" + " | ".join(higher_due) + ")"
             else:
-                f.write(
-                    f"  [update_{name}] due_{name} -> {effect} & (step'=1) & (ready'=1);\n"
-                )
+                cond_not_higher = ""
+            f.write(
+                f"  [update_{name}] due_{name}{cond_not_higher} -> "
+                f"{effect} & (step'=1);\n"
+            )
             higher_due.append(f"due_{name}")
         f.write("\n")
 
         if self.update_names:
             f.write(
-                "  [skip_update] (ready=0) & !("
+                "  [skip_update] !("
                 + " | ".join([f"due_{n}" for n in self.update_names])
-                + ") -> (ready'=1) & (step'=step+1);\n"
+                + ") -> (step'=step+1);\n"
             )
         else:
-            f.write("  [skip_update] (ready=0) -> (ready'=1) & (step'=step+1);\n")
+            f.write("  [skip_update] true -> (step'=step+1);\n")
         f.write("endmodule\n\n")
 
-    def rewards(self, f:TextIOWrapper):
+    def rewards(self, f: TextIOWrapper):
         f.write('rewards "cost" \n')
-        for action_name, action_cost in zip(self.action_names,self.action_costs):
+        for action_name, action_cost in zip(self.action_names, self.action_costs):
             f.write(f"  [{action_name}] true : {action_cost}; \n")
-        for update_name,update_cost in zip(self.update_names,self.update_costs):
+        for update_name, update_cost in zip(self.update_names, self.update_costs):
             f.write(f"  [update_{update_name}] true : {update_cost};\n")
         f.write("endrewards \n\n")
+
+    def turn(self, f: TextIOWrapper):
+        f.write("module Turn\n")
+        f.write("  t : [0..1] init 0;\n")
+
+        # Movement phase: actions only when t = 0
+        for a in self.action_names:
+            f.write(f"  [{a}] (t=0) -> (t'=1);\n")
+
+        f.write("\n")
+        # Update phase: one of the updates or skip when t = 1
+        for name in self.update_names:
+            f.write(f"  [update_{name}] (t=1) -> (t'=0);\n")
+        f.write("  [skip_update] (t=1) -> (t'=0);\n\n")
+
+        f.write("endmodule\n\n")
 
 
 def generate_robot_model(i, param_file="input.json"):
@@ -145,12 +162,12 @@ def generate_robot_model(i, param_file="input.json"):
     with open(param_file, "r") as file:
         params = json.load(file)
 
-    map_array=[]
+    map_array = []
     with open(f"maps/map_{i}.csv", "r") as file:
         csv_reader = csv.reader(file)
         for row in csv_reader:
             map_array.append(row)
 
-    rp=Robot_Problem(params,map_array)
+    rp = Robot_Problem(params, map_array)
 
     rp.to_file(prism_file)

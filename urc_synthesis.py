@@ -119,13 +119,28 @@ class ParleyPlusURC:
         self.combinations = list(product(*self.domains))
 
     def transform_file(self, infile, outfile, popfile):
+        TURN_START_RE = re.compile(r"^\s*module\s+Turn\b")
+        ENDMODULE_RE = re.compile(r"^\s*endmodule\b")
+
         with open(infile, "r") as fin, open(outfile, "w") as fout:
+            skipping_turn = False
+
             for line in fin:
-                # Remove: const int c_gps = ...;
+                # drop original Turn module completely
+                if TURN_START_RE.match(line):
+                    skipping_turn = True
+                    continue
+                if skipping_turn:
+                    if ENDMODULE_RE.match(line):
+                        skipping_turn = False
+                    continue
+
+                # drop fixed constants: const int c_<service> = ...;
                 if any(
                     line.strip().startswith(f"const int c_{s}") for s in self.services
                 ):
                     continue
+
                 fout.write(line)
 
         with open(outfile, "a") as f:
@@ -579,13 +594,28 @@ class ParleyUAMealy:
     # ---------- pipeline ----------
 
     def transform_file(self, infile: str, outfile: str, popfile: str):
-        # Copy while removing fixed const counters: const int c_<service> = ...;
+        TURN_START_RE = re.compile(r"^\s*module\s+Turn\b")
+        ENDMODULE_RE = re.compile(r"^\s*endmodule\b")
+
         with open(infile, "r") as fin, open(outfile, "w") as fout:
+            skipping_turn = False
+
             for line in fin:
+                # drop original Turn module completely
+                if TURN_START_RE.match(line):
+                    skipping_turn = True
+                    continue
+                if skipping_turn:
+                    if ENDMODULE_RE.match(line):
+                        skipping_turn = False
+                    continue
+
+                # drop fixed const counters: const int c_<service> = ...;
                 if any(
                     line.strip().startswith(f"const int c_{s}") for s in self.services
                 ):
                     continue
+
                 fout.write(line)
 
         with open(outfile, "a") as f:
@@ -701,7 +731,7 @@ class ParleyUAMealy:
         f.write("endmodule\n\n")
 
     def add_turn(self, f: TextIOWrapper):
-        inline_commit = (not self.obs_only_after_update)
+        inline_commit = not self.obs_only_after_update
 
         if inline_commit:
             # No UA_APPLY steps exist in this mode.
@@ -770,7 +800,6 @@ class ParleyUAMealy:
         f.write("\n  [UA_TRANS_OBS] (t=2) -> (t'=3);\n")
         f.write("  [UA_APPLY] (t=3) -> (t'=0);\n")
         f.write("endmodule\n")
-
 
     # ---------- popfile ----------
 
