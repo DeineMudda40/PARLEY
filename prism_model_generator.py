@@ -36,6 +36,11 @@ class Robot_Problem:
         _d = dijkstra.compute_directions(self.map_data, self.target_pos)
         self.d = list(zip(*_d))
 
+        self.gps_error = float(map_params.get("gps_error", 0.0))  # e.g. 0.2
+
+        # after obstacles are computed:
+        self.obstacle_set = set((ox, oy) for ox, oy in self.obstacles)
+
     def to_file(self, prism_file):
         open(prism_file, "w").close()
 
@@ -59,6 +64,9 @@ class Robot_Problem:
         f.write(f"const int xtarget = {self.target_pos[0]};\n")
         f.write(f"const int ytarget = {self.target_pos[1]};\n")
         f.write(f"const double p = {round(self.p,3)};\n")
+        f.write(f"const double gps_err = {round(self.gps_error, 6)};\n")
+        f.write("const double gps_off = gps_err/4;\n")
+
         # formula for obstacles
         f.write("formula hasCrashed = (1=0) ")
         for x, y in self.obstacles:
@@ -114,12 +122,24 @@ class Robot_Problem:
                 cond_not_higher = " & !(" + " | ".join(higher_due) + ")"
             else:
                 cond_not_higher = ""
-            f.write(
-                f"  [update_{name}] due_{name}{cond_not_higher} -> "
-                f"{effect} & (step'=1);\n"
-            )
+
+            # Special-case imperfect GPS
+            if name == "gps" and self.gps_error > 0.0:
+                for tx in range(self.mapSize):
+                    for ty in range(self.mapSize):
+                        branches = self._gps_branches_for_true_xy(tx, ty)
+                        f.write(
+                            f"  [update_{name}] due_{name}{cond_not_higher} & (x={tx}) & (y={ty}) -> \n"
+                            f"    {branches}\n"
+                        )
+            else:
+                # default (perfect) update logic for other services
+                f.write(
+                    f"  [update_{name}] due_{name}{cond_not_higher} -> "
+                    f"{effect} & (step'=1);\n"
+                )
+
             higher_due.append(f"due_{name}")
-        f.write("\n")
 
         if self.update_names:
             f.write(
@@ -154,6 +174,28 @@ class Robot_Problem:
         f.write("  [skip_update] (t=1) -> (t'=0);\n\n")
 
         f.write("endmodule\n\n")
+
+    def _gps_branches_for_true_xy(self, tx: int, ty: int) -> str:
+        """
+        Return a PRISM probabilistic update for the GPS update when true position is (tx,ty).
+        Method 1: each valid 4-neighbour gets gps_off; invalid mass snaps back to (tx,ty).
+        """
+        candidates = [(tx + 1, ty), (tx - 1, ty), (tx, ty + 1), (tx, ty - 1)]
+        valid = []
+        for nx, ny in candidates:
+            if (
+                0 <= nx < self.mapSize
+                and 0 <= ny < self.mapSize
+                and (nx, ny) not in self.obstacle_set
+            ):
+                valid.append((nx, ny))
+
+        v = len(valid)
+        parts = [f"(1 - gps_off*{v}): (xhat'={tx}) & (yhat'={ty}) & (step'=1)"]
+        for nx, ny in valid:
+            parts.append(f"gps_off: (xhat'={nx}) & (yhat'={ny}) & (step'=1)")
+
+        return " + \n    ".join(parts) + ";"
 
 
 def generate_robot_model(i, param_file="input.json"):

@@ -4,6 +4,7 @@
     "targetX": 9,
     "targetY": 9,
     "p": 0.033,
+    "gps_error": 0.2,
     "update_names": [
         "gps"
     ],
