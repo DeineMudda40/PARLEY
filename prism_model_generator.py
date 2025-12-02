@@ -2,6 +2,7 @@ import csv
 import json
 import dijkstra
 from _io import TextIOWrapper
+import re
 
 
 class Robot_Problem:
@@ -14,6 +15,7 @@ class Robot_Problem:
         self.update_names = map_params["update_names"]
         self.update_costs = map_params["update_costs"]
         self.update_effects = map_params["update_effects"]
+        self.update_errors = map_params["update_errors"]
 
         self.action_names = map_params["action_names"]
         self.action_knowledge_effects = map_params["action_knowledge_effects"]
@@ -36,9 +38,6 @@ class Robot_Problem:
         _d = dijkstra.compute_directions(self.map_data, self.target_pos)
         self.d = list(zip(*_d))
 
-        self.gps_error = float(map_params.get("gps_error", 0.0))  # e.g. 0.2
-
-        # after obstacles are computed:
         self.obstacle_set = set((ox, oy) for ox, oy in self.obstacles)
 
     def to_file(self, prism_file):
@@ -64,9 +63,6 @@ class Robot_Problem:
         f.write(f"const int xtarget = {self.target_pos[0]};\n")
         f.write(f"const int ytarget = {self.target_pos[1]};\n")
         f.write(f"const double p = {round(self.p,3)};\n")
-        f.write(f"const double gps_err = {round(self.gps_error, 6)};\n")
-        f.write("const double gps_off = gps_err/4;\n")
-
         # formula for obstacles
         f.write("formula hasCrashed = (1=0) ")
         for x, y in self.obstacles:
@@ -117,29 +113,33 @@ class Robot_Problem:
 
         f.write("\n")
         higher_due = []
-        for name, effect in zip(self.update_names, self.update_effects):
+        for name, effect, err in zip(
+            self.update_names, self.update_effects, self.update_errors
+        ):
             if higher_due:
                 cond_not_higher = " & !(" + " | ".join(higher_due) + ")"
             else:
                 cond_not_higher = ""
 
-            # Special-case imperfect GPS
-            if name == "gps" and self.gps_error > 0.0:
+            # Generic: if the update is a perfect position reset, optionally make it noisy.
+            if err > 0.0 and self._is_perfect_pos_update(effect):
                 for tx in range(self.mapSize):
                     for ty in range(self.mapSize):
-                        branches = self._gps_branches_for_true_xy(tx, ty)
+                        branches = self._noisy_pos_update_branches(tx, ty, err)
                         f.write(
                             f"  [update_{name}] due_{name}{cond_not_higher} & (x={tx}) & (y={ty}) -> \n"
                             f"    {branches}\n"
                         )
             else:
-                # default (perfect) update logic for other services
+                # Default behaviour for non-position updates (or err=0)
                 f.write(
                     f"  [update_{name}] due_{name}{cond_not_higher} -> "
                     f"{effect} & (step'=1);\n"
                 )
 
             higher_due.append(f"due_{name}")
+
+        f.write("\n")
 
         if self.update_names:
             f.write(
@@ -175,12 +175,26 @@ class Robot_Problem:
 
         f.write("endmodule\n\n")
 
-    def _gps_branches_for_true_xy(self, tx: int, ty: int) -> str:
+    def _is_perfect_pos_update(self, effect: str) -> bool:
         """
-        Return a PRISM probabilistic update for the GPS update when true position is (tx,ty).
-        Method 1: each valid 4-neighbour gets gps_off; invalid mass snaps back to (tx,ty).
+        True iff effect is exactly (xhat'=x) & (yhat'=y) ignoring whitespace.
         """
+        s = re.sub(r"\s+", "", effect)
+        return s in ("(xhat'=x)&(yhat'=y)", "(yhat'=y)&(xhat'=x)")
+
+    def _noisy_pos_update_branches(self, tx: int, ty: int, err: float) -> str:
+        """
+        Method 1 (snap invalid mass to true position):
+        - total error = err
+        - each of 4 neighbours tries to get err/4
+        - neighbours that are OOB or obstacle are removed and their mass
+            is added to the true position.
+
+        Returns PRISM branches that also set (step'=1).
+        """
+        off = err / 4.0
         candidates = [(tx + 1, ty), (tx - 1, ty), (tx, ty + 1), (tx, ty - 1)]
+
         valid = []
         for nx, ny in candidates:
             if (
@@ -191,9 +205,10 @@ class Robot_Problem:
                 valid.append((nx, ny))
 
         v = len(valid)
-        parts = [f"(1 - gps_off*{v}): (xhat'={tx}) & (yhat'={ty}) & (step'=1)"]
+
+        parts = [f"(1 - {off:.6f}*{v}): (xhat'={tx}) & (yhat'={ty}) & (step'=1)"]
         for nx, ny in valid:
-            parts.append(f"gps_off: (xhat'={nx}) & (yhat'={ny}) & (step'=1)")
+            parts.append(f"{off:.6f}: (xhat'={nx}) & (yhat'={ny}) & (step'=1)")
 
         return " + \n    ".join(parts) + ";"
 
