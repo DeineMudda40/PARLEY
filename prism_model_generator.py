@@ -63,6 +63,10 @@ class Robot_Problem:
         f.write(f"const int xtarget = {self.target_pos[0]};\n")
         f.write(f"const int ytarget = {self.target_pos[1]};\n")
         f.write(f"const double p = {round(self.p,3)};\n")
+        # per-update sensing error (probability mass to be 1-off)
+        for update_name, err in zip(self.update_names, self.update_errors):
+            f.write(f"const double e_{update_name} = {round(err, 3)};\n")
+
         # formula for obstacles
         f.write("formula hasCrashed = (1=0) ")
         for x, y in self.obstacles:
@@ -100,55 +104,59 @@ class Robot_Problem:
         f.write("endmodule\n\n")
 
     def knowledge(self, f: TextIOWrapper):
+        STEP_MAX = 20
+
+        # one due_* formula per service counter
         for name in self.update_names:
-            f.write(f"formula due_{name} = (step>=c_{name});\n")
+            f.write(f"formula due_{name} = (step_{name}>=c_{name});\n")
 
         f.write("module Knowledge\n")
         f.write("  xhat : [0..N] init xstart;\n")
         f.write("  yhat : [0..N] init ystart;\n")
-        f.write("  step : [1..20] init 1;\n\n")
+        for name in self.update_names:
+            f.write(f"  step_{name} : [1..{STEP_MAX}] init 1;\n")
 
         for d, effect in zip(self.action_names, self.action_knowledge_effects):
             f.write(f"  [{d}] true -> {effect};\n\n")
 
         f.write("\n")
         higher_due = []
-        for name, effect, err in zip(
-            self.update_names, self.update_effects, self.update_errors
-        ):
+        for name, effect, err in zip(self.update_names, self.update_effects, self.update_errors):
             if higher_due:
                 cond_not_higher = " & !(" + " | ".join(higher_due) + ")"
             else:
                 cond_not_higher = ""
 
-            # Generic: if the update is a perfect position reset, optionally make it noisy.
+            # step updates: chosen service resets, the others age by +1 (capped)
+            step_updates = " & ".join(
+                [f"(step_{n}'=1)" if n == name else f"(step_{n}'=min(step_{n}+1,{STEP_MAX}))"
+                for n in self.update_names]
+            )
+
             if err > 0.0 and self._is_perfect_pos_update(effect):
                 for tx in range(self.mapSize):
                     for ty in range(self.mapSize):
-                        branches = self._noisy_pos_update_branches(tx, ty, err)
+                        branches = self._noisy_pos_update_branches(tx, ty, f"e_{name}", name, step_updates)
                         f.write(
                             f"  [update_{name}] due_{name}{cond_not_higher} & (x={tx}) & (y={ty}) -> \n"
                             f"    {branches}\n"
                         )
             else:
-                # Default behaviour for non-position updates (or err=0)
                 f.write(
                     f"  [update_{name}] due_{name}{cond_not_higher} -> "
-                    f"{effect} & (step'=1);\n"
+                    f"{effect} & {step_updates};\n"
                 )
 
             higher_due.append(f"due_{name}")
 
+
         f.write("\n")
 
-        if self.update_names:
-            f.write(
-                "  [skip_update] !("
-                + " | ".join([f"due_{n}" for n in self.update_names])
-                + ") -> (step'=step+1);\n"
-            )
-        else:
-            f.write("  [skip_update] true -> (step'=step+1);\n")
+        f.write(
+            "  [skip_update] !("
+            + " | ".join([f"due_{n}" for n in self.update_names])
+            + ") ->"+ " & ".join([f"(step_{n}'=min(step_{n}+1,{STEP_MAX}))" for n in self.update_names]) +";\n"
+        )
         f.write("endmodule\n\n")
 
     def rewards(self, f: TextIOWrapper):
@@ -182,35 +190,22 @@ class Robot_Problem:
         s = re.sub(r"\s+", "", effect)
         return s in ("(xhat'=x)&(yhat'=y)", "(yhat'=y)&(xhat'=x)")
 
-    def _noisy_pos_update_branches(self, tx: int, ty: int, err: float) -> str:
-        """
-        Method 1 (snap invalid mass to true position):
-        - total error = err
-        - each of 4 neighbours tries to get err/4
-        - neighbours that are OOB or obstacle are removed and their mass
-            is added to the true position.
-
-        Returns PRISM branches that also set (step'=1).
-        """
-        off = err / 4.0
+    def _noisy_pos_update_branches(self, tx: int, ty: int, err_sym: str, name: str, step_updates: str) -> str:
+        off_expr = f"({err_sym}/4.0)"
         candidates = [(tx + 1, ty), (tx - 1, ty), (tx, ty + 1), (tx, ty - 1)]
 
         valid = []
         for nx, ny in candidates:
-            if (
-                0 <= nx < self.mapSize
-                and 0 <= ny < self.mapSize
-                and (nx, ny) not in self.obstacle_set
-            ):
+            if 0 <= nx < self.mapSize and 0 <= ny < self.mapSize and (nx, ny) not in self.obstacle_set:
                 valid.append((nx, ny))
-
         v = len(valid)
 
-        parts = [f"(1 - {off:.6f}*{v}): (xhat'={tx}) & (yhat'={ty}) & (step'=1)"]
+        parts = [f"(1 - {off_expr}*{v}): (xhat'={tx}) & (yhat'={ty}) & {step_updates}"]
         for nx, ny in valid:
-            parts.append(f"{off:.6f}: (xhat'={nx}) & (yhat'={ny}) & (step'=1)")
+            parts.append(f"{off_expr}: (xhat'={nx}) & (yhat'={ny}) & {step_updates}")
 
         return " + \n    ".join(parts) + ";"
+
 
 
 def generate_robot_model(i, param_file="input.json"):

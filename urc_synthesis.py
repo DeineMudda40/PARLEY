@@ -82,12 +82,12 @@ class ParleyPlusURC:
         min_val=1,
         max_val=10,
         actions=("east", "west", "north", "south"),
-        speed_mode: bool = False,
+        transition_after_update=False,  # <-- add
     ):
         self.min_val = int(min_val)
         self.max_val = int(max_val)
         self.actions = list(actions)
-        self.speed_mode = bool(speed_mode)
+        self.transition_after_update = bool(transition_after_update)
 
         with open(infile, "r") as f:
             self.services = get_services_from_prism_file(f)
@@ -141,107 +141,14 @@ class ParleyPlusURC:
 
                 fout.write(line)
 
-        # 2) If speed_mode: rewrite Knowledge (remove due_* formula and re-guard update/skip)
-        if self.speed_mode:
-            with open(outfile, "r", encoding="utf-8") as f:
-                text = f.read()
-            text = self._rewrite_knowledge_speed_mode(text)
-            with open(outfile, "w", encoding="utf-8") as f:
-                f.write(text)
-
         # 3) Append added modules/decls
         with open(outfile, "a") as f:
-            if self.speed_mode:
-                self.add_decisions_only(f)
-                self.add_turn_speed(f)
-            else:
-                self.add_urc(f)
-                self.add_turn(f)
+            self.add_urc(f)
+            self.add_turn(f)
 
         # 4) Population file (same number of evolvables in both modes here)
         with open(popfile, "w") as f:
             self.create_pop_file(f)
-
-    # ---------- speed_mode rewrite ----------
-
-    def _rewrite_knowledge_speed_mode(self, text: str) -> str:
-        # Remove all "formula due_<service> = ..." lines (they reference c_<service>).
-        text = re.sub(r"(?m)^\s*formula\s+due_[A-Za-z_]\w*\s*=.*;\s*\n", "", text)
-
-        # Extract Knowledge module
-        m = re.search(r"(?ms)^module\s+Knowledge\b.*?^endmodule\b", text)
-        if not m:
-            raise ValueError(
-                "Could not find 'module Knowledge ... endmodule' to rewrite."
-            )
-
-        block = m.group(0)
-
-        # Capture RHS of existing update and skip commands (so we preserve your effects).
-        update_rhs = {}
-        for s in self.services:
-            mu = re.search(
-                rf"(?m)^\s*\[update_{re.escape(s)}\].*?->\s*(.*?)\s*;\s*$",
-                block,
-            )
-            if not mu:
-                raise ValueError(f"Could not find [update_{s}] command in Knowledge.")
-            update_rhs[s] = mu.group(1).strip()
-
-        ms = re.search(r"(?m)^\s*\[skip_update\].*?->\s*(.*?)\s*;\s*$", block)
-        if not ms:
-            raise ValueError("Could not find [skip_update] command in Knowledge.")
-        skip_rhs = ms.group(1).strip()
-
-        # Remove existing update/skip command lines (single-line commands assumed).
-        new_lines = []
-        for line in block.splitlines(True):
-            if re.match(r"^\s*\[(update_|skip_update)", line):
-                continue
-            new_lines.append(line)
-
-        # Insert generated guarded commands just before endmodule
-        end_idx = None
-        for i, line in enumerate(new_lines):
-            if re.match(r"^\s*endmodule\b", line):
-                end_idx = i
-                break
-        if end_idx is None:
-            raise ValueError("Malformed Knowledge module: missing endmodule.")
-
-        gen = []
-        gen.append(
-            "\n  // speed_mode: inline per-observation thresholds (no URC module/state)\n"
-        )
-
-        # Priority semantics: earlier services in self.services have higher priority
-        for combo in self.combinations:
-            hat_guard = self._hat_guard(combo)
-
-            # updates
-            higher_due_exprs = []
-            for s in self.services:
-                due_s = f"(step>={self._decision_var(s, combo)})"
-                if higher_due_exprs:
-                    not_higher = " & !(" + " | ".join(higher_due_exprs) + ")"
-                else:
-                    not_higher = ""
-                gen.append(
-                    f"  [update_{s}] {hat_guard} & {due_s}{not_higher} -> {update_rhs[s]};\n"
-                )
-                higher_due_exprs.append(due_s)
-
-            # skip (no due service true) - use conjunctive form to keep guards disjoint and simple
-            all_not_due = " & ".join(
-                f"(step<{self._decision_var(s, combo)})" for s in self.services
-            )
-            gen.append(f"  [skip_update] {hat_guard} & {all_not_due} -> {skip_rhs};\n")
-
-        new_lines.insert(end_idx, "".join(gen))
-        new_block = "".join(new_lines)
-
-        # Replace in full text
-        return text[: m.start()] + new_block + text[m.end() :]
 
     # ---------- codegen (normal mode) ----------
 
@@ -283,42 +190,37 @@ class ParleyPlusURC:
         f.write("endmodule\n\n")
 
     def add_turn(self, f: TextIOWrapper):
-        f.write("module Turn\n")
-        f.write("  t : [0..2] init 0;\n")
-        for a in self.actions:
-            f.write(f"  [{a}] (t=0) -> (t'=1);\n")
+        if not self.transition_after_update:
+            # --- current behavior ---
+            f.write("module Turn\n")
+            f.write("  t : [0..2] init 0;\n")
+            for a in self.actions:
+                f.write(f"  [{a}] (t=0) -> (t'=1);\n")
 
-        f.write("\n  [URC] (t=1) -> (t'=2);\n\n")
+            f.write("\n  [URC] (t=1) -> (t'=2);\n\n")
 
-        for s in self.services:
-            f.write(f"  [update_{s}] (t=2) -> (t'=0);\n")
-        f.write("  [skip_update] (t=2) -> (t'=0);\n")
-        f.write("endmodule\n")
+            for s in self.services:
+                f.write(f"  [update_{s}] (t=2) -> (t'=0);\n")
+            f.write("  [skip_update] (t=2) -> (t'=0);\n")
+            f.write("endmodule\n")
+        else:
+            f.write("module Turn\n")
+            f.write("  t : [0..2] init 0;\n")
 
-    # ---------- codegen (speed_mode) ----------
+            # movement phase
+            for a in self.actions:
+                f.write(f"  [{a}] (t=0) -> (t'=1);\n")
 
-    def add_decisions_only(self, f: TextIOWrapper):
-        # Same evolve vars as normal mode, but no URC module/state at all.
-        for service in self.services:
-            for combo in product(*self.domains):
-                f.write(
-                    f"evolve int {self._decision_var(service, combo)} "
-                    f"[{self.min_val}..{self.max_val}];\n"
-                )
-        f.write("\n")
+            f.write("\n  // Update phase\n")
+            # if an update happens, go to URC phase
+            for s in self.services:
+                f.write(f"  [update_{s}] (t=1) -> (t'=2);\n")
+            # if we skip, go straight back to movement (no URC)
+            f.write("  [skip_update] (t=1) -> (t'=0);\n")
 
-    def add_turn_speed(self, f: TextIOWrapper):
-        # 2-phase: action -> update/skip. No [URC] phase.
-        f.write("module Turn\n")
-        f.write("  t : [0..1] init 0;\n")
-        for a in self.actions:
-            f.write(f"  [{a}] (t=0) -> (t'=1);\n")
-
-        f.write("\n")
-        for s in self.services:
-            f.write(f"  [update_{s}] (t=1) -> (t'=0);\n")
-        f.write("  [skip_update] (t=1) -> (t'=0);\n")
-        f.write("endmodule\n")
+            # URC phase (only reachable after update_*)
+            f.write("\n  [URC] (t=2) -> (t'=0);\n")
+            f.write("endmodule\n")
 
     # ---------- popfile ----------
 
@@ -340,14 +242,14 @@ class ParleyUAMealy:
         max_val: int = 10,
         actions=("east", "west", "north", "south"),
         internal_states: int = 10,
-        speed_mode: bool = False,
+        transition_after_update: bool = False,
     ):
         self.infile = infile
         self.min_val = int(min_val)
         self.max_val = int(max_val)
         self.actions = list(actions)
         self.internal_states = int(internal_states)
-        self.speed_mode = speed_mode
+        self.transition_after_update = bool(transition_after_update)
 
         with open(infile, "r") as f:
             self.services = get_services_from_prism_file(f)
@@ -468,54 +370,41 @@ class ParleyUAMealy:
                         f"(c_{service}'={self._out_obs_symbol(service, s, combo)})"
                     )
 
-                if self.speed_mode:
-                    # Emit one transition per update label + skip_update.
-                    for lab in fused_labels:
-                        f.write(
-                            f"  [{lab}] (ua_s={s}) & {guard} -> "
-                            + " & ".join(updates)
-                            + ";\n"
-                        )
-                else:
-                    # Original behavior: separate UA step labeled [URC]
-                    f.write(
-                        f"  [URC] (ua_s={s}) & {guard} -> "
-                        + " & ".join(updates)
-                        + ";\n"
-                    )
+                f.write(
+                    f"  [URC] (ua_s={s}) & {guard} -> " + " & ".join(updates) + ";\n"
+                )
         f.write("\n")
         f.write("endmodule\n\n")
 
     def add_turn(self, f: TextIOWrapper):
-        # --- SPEED MODE: remove [URC] phase, fuse it into update/skip_update ---
-        if self.speed_mode:
-            f.write("module Turn\n")
-            f.write("  t : [0..1] init 0;\n")
+        f.write("module Turn\n")
 
+        if not self.transition_after_update:
+            # current behavior: move -> URC -> update/skip
+            f.write("  t : [0..2] init 0;\n")
+            for a in self.actions:
+                f.write(f"  [{a}] (t=0) -> (t'=1);\n")
+            f.write("\n  [URC] (t=1) -> (t'=2);\n")
+            f.write("\n  // Update phase\n")
+            for s in self.services:
+                f.write(f"  [update_{s}] (t=2) -> (t'=0);\n")
+            f.write("  [skip_update] (t=2) -> (t'=0);\n")
+
+        else:
+            # new behavior: move -> update/skip -> URC (only if an update happened)
+            # We achieve this by only reaching t=2 via update_*; skip_update jumps back to 0.
+            f.write("  t : [0..2] init 0;\n")
             for a in self.actions:
                 f.write(f"  [{a}] (t=0) -> (t'=1);\n")
 
-            f.write("\n  // Update+UA phase\n")
+            f.write("\n  // Update phase\n")
             for s in self.services:
-                f.write(f"  [update_{s}] (t=1) -> (t'=0);\n")
+                f.write(f"  [update_{s}] (t=1) -> (t'=2);\n")
             f.write("  [skip_update] (t=1) -> (t'=0);\n")
-            f.write("endmodule\n")
-            return
 
-        # --- ORIGINAL (non-speed) Turn ---
-        f.write("module Turn\n")
-        f.write("  t : [0..2] init 0;\n")
+            f.write("\n  // URC only after an update\n")
+            f.write("  [URC] (t=2) -> (t'=0);\n")
 
-        for a in self.actions:
-            f.write(f"  [{a}] (t=0) -> (t'=1);\n")
-
-        f.write("\n  [URC] (t=1) -> (t'=2);\n")
-
-        f.write("\n  // Update phase\n")
-        for s in self.services:
-            f.write(f"  [update_{s}] (t=2) -> (t'=0);\n")
-
-        f.write("  [skip_update] (t=2) -> (t'=0);\n")
         f.write("endmodule\n")
 
     # ---------- popfile (FIXED COUNTS) ----------

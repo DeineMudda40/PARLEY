@@ -5,7 +5,7 @@
     "targetY": 9,
     "p": 0.033,
     "update_errors": [
-        0.4
+        0.2
     ],
     "update_names": [
         "gps"
@@ -33,10 +33,10 @@
         "(yhat'=min(yhat+1, N))"
     ],
     "action_effects": [
-        "    p: (x'=min(x+1, N)) + \n    p: (y'=min(y+1, N)) + \n    p: (y'=max(y-1, 0)) + \n    (1-3*p): (x'=max(x-1, 0));\n",
-        "    (1-3*p): (x'=min(x+1, N)) + \n    p: (y'=min(y+1, N)) + \n    p: (y'=max(y-1, 0)) + \n    p: (x'=max(x-1, 0));\n",
-        "    p: (x'=min(x+1, N)) + \n    p: (y'=min(y+1, N)) + \n    (1-3*p): (y'=max(y-1, 0)) + \n    p: (x'=max(x-1, 0));\n",
-        "    p: (x'=min(x+1, N)) + \n    (1-3*p): (y'=min(y+1, N)) + \n    p: (y'=max(y-1, 0)) + \n    p: (x'=max(x-1, 0));\n"
+        "    (x'=max(x-1, 0));\n",
+        "    (x'=min(x+1, N));\n",
+        "    (y'=max(y-1, 0));\n",
+        "    (y'=min(y+1, N));\n"
     ],
     "action_costs": [
         1,
