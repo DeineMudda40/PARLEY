@@ -31,9 +31,9 @@ def models(i, uncertainty_aware=False):
         uncertainty_aware=uncertainty_aware
     )"""
     if uncertainty_aware:
-        urc_synthesis.ParleyUAMealy(infile,internal_states=2,speed_mode=False).transform_file(infile,outfile,popfile)
+        urc_synthesis.ParleyUAMealy(infile,internal_states=2,transition_after_update=True).transform_file(infile,outfile,popfile)
     else:
-        urc_synthesis.ParleyPlusURC(infile,speed_mode=False).transform_file(infile,outfile,popfile)
+        urc_synthesis.ParleyPlusURC(infile,transition_after_update=True).transform_file(infile,outfile,popfile)
 
 
 def baseline(i):
@@ -87,7 +87,7 @@ def run_unaware(i):
     __modify_properties()
     # maps()
     models(i, uncertainty_aware=False)
-    baseline(i)
+    #baseline(i)
     evo_checker(i, "_PLUS")
 
 
@@ -100,12 +100,12 @@ def run_aware(i):
 
 
 def main2():
-    maps()
+    #maps()
     for i in range(10, 11):
         
-        run_unaware(i)
+        #run_unaware(i)
         run_aware(i)
-        fronts(i)
+        #fronts(i)
 
 
 def main():

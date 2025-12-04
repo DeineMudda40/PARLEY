@@ -202,7 +202,6 @@ class ParleyPlusURC:
             for s in self.services:
                 f.write(f"  [update_{s}] (t=2) -> (t'=0);\n")
             f.write("  [skip_update] (t=2) -> (t'=0);\n")
-            f.write("endmodule\n")
         else:
             f.write("module Turn\n")
             f.write("  t : [0..2] init 0;\n")
@@ -220,7 +219,7 @@ class ParleyPlusURC:
 
             # URC phase (only reachable after update_*)
             f.write("\n  [URC] (t=2) -> (t'=0);\n")
-            f.write("endmodule\n")
+        f.write("endmodule\n")
 
     # ---------- popfile ----------
 
