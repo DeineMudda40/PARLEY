@@ -3,6 +3,7 @@ import json
 import dijkstra
 from _io import TextIOWrapper
 import re
+import random
 
 
 class Robot_Problem:
@@ -21,6 +22,8 @@ class Robot_Problem:
         self.action_knowledge_effects = map_params["action_knowledge_effects"]
         self.action_effects = map_params["action_effects"]
         self.action_costs = map_params["action_costs"]
+
+        self.binary_updates = map_params["binary_updates"]
 
         self.mapSize = len(map_array)
 
@@ -55,8 +58,12 @@ class Robot_Problem:
 
     def preambel(self, f: TextIOWrapper):
         f.write("dtmc\n")
-        for update_name, fc in zip(self.update_names, self.fix_cs):
-            f.write(f"const int c_{update_name} = {fc};\n")
+        if self.binary_updates:
+            for update_name, fc in zip(self.update_names, self.fix_cs):
+                f.write(f"const int c_{update_name} = {0};\n")
+        else:
+            for update_name, fc in zip(self.update_names, self.fix_cs):
+                f.write(f"const int c_{update_name} = {fc};\n")
         f.write(f"const int N = {self.mapSize - 1};\n")
         f.write(f"const int xstart = {self.start_pos[0]};\n")
         f.write(f"const int ystart = {self.start_pos[1]};\n")
@@ -104,59 +111,95 @@ class Robot_Problem:
         f.write("endmodule\n\n")
 
     def knowledge(self, f: TextIOWrapper):
-        STEP_MAX = 20
+        STEP_MAX = 10
 
         # one due_* formula per service counter
-        for name in self.update_names:
-            f.write(f"formula due_{name} = (step_{name}>=c_{name});\n")
+        if self.binary_updates:
+            for name in self.update_names:
+                f.write(f"formula due_{name} = (c_{name}=1);\n")
+        else:
+            for name in self.update_names:
+                f.write(f"formula due_{name} = (step_{name}>=c_{name});\n")
 
         f.write("module Knowledge\n")
         f.write("  xhat : [0..N] init xstart;\n")
         f.write("  yhat : [0..N] init ystart;\n")
-        for name in self.update_names:
-            f.write(f"  step_{name} : [1..{STEP_MAX}] init 1;\n")
+        if not self.binary_updates:
+            for name in self.update_names:
+                f.write(f"  step_{name} : [1..{STEP_MAX}] init 1;\n")
 
         for d, effect in zip(self.action_names, self.action_knowledge_effects):
             f.write(f"  [{d}] true -> {effect};\n\n")
 
         f.write("\n")
         higher_due = []
-        for name, effect, err in zip(self.update_names, self.update_effects, self.update_errors):
+        for name, effect, err in zip(
+            self.update_names, self.update_effects, self.update_errors
+        ):
             if higher_due:
                 cond_not_higher = " & !(" + " | ".join(higher_due) + ")"
             else:
                 cond_not_higher = ""
 
-            # step updates: chosen service resets, the others age by +1 (capped)
-            step_updates = " & ".join(
-                [f"(step_{n}'=1)" if n == name else f"(step_{n}'=min(step_{n}+1,{STEP_MAX}))"
-                for n in self.update_names]
-            )
+            if self.binary_updates:
+                step_updates = ""
+            else:
+                step_updates = " & ".join(
+                    [
+                        (
+                            f"(step_{n}'=1)"
+                            if n == name
+                            else f"(step_{n}'=min(step_{n}+1,{STEP_MAX}))"
+                        )
+                        for n in self.update_names
+                    ]
+                )
 
             if err > 0.0 and self._is_perfect_pos_update(effect):
                 for tx in range(self.mapSize):
                     for ty in range(self.mapSize):
-                        branches = self._noisy_pos_update_branches(tx, ty, f"e_{name}", name, step_updates)
+                        branches = self._noisy_pos_update_branches(
+                            tx, ty, f"e_{name}", name, step_updates
+                        )
                         f.write(
                             f"  [update_{name}] due_{name}{cond_not_higher} & (x={tx}) & (y={ty}) -> \n"
                             f"    {branches}\n"
                         )
             else:
-                f.write(
-                    f"  [update_{name}] due_{name}{cond_not_higher} -> "
-                    f"{effect} & {step_updates};\n"
-                )
+                if self.binary_updates:
+                    f.write(
+                        f"  [update_{name}] due_{name}{cond_not_higher} -> "
+                        f"{effect};\n"
+                    )
+                else:
+                    f.write(
+                        f"  [update_{name}] due_{name}{cond_not_higher} -> "
+                        f"{effect} & {step_updates};\n"
+                    )
 
             higher_due.append(f"due_{name}")
 
-
         f.write("\n")
 
-        f.write(
-            "  [skip_update] !("
-            + " | ".join([f"due_{n}" for n in self.update_names])
-            + ") ->"+ " & ".join([f"(step_{n}'=min(step_{n}+1,{STEP_MAX}))" for n in self.update_names]) +";\n"
-        )
+        if self.binary_updates:
+            f.write(
+                "  [skip_update] !("
+                + " | ".join([f"due_{n}" for n in self.update_names])
+                + ") ->true;\n"
+            )
+        else:
+            f.write(
+                "  [skip_update] !("
+                + " | ".join([f"due_{n}" for n in self.update_names])
+                + ") ->"
+                + " & ".join(
+                    [
+                        f"(step_{n}'=min(step_{n}+1,{STEP_MAX}))"
+                        for n in self.update_names
+                    ]
+                )
+                + ";\n"
+            )
         f.write("endmodule\n\n")
 
     def rewards(self, f: TextIOWrapper):
@@ -190,22 +233,43 @@ class Robot_Problem:
         s = re.sub(r"\s+", "", effect)
         return s in ("(xhat'=x)&(yhat'=y)", "(yhat'=y)&(xhat'=x)")
 
-    def _noisy_pos_update_branches(self, tx: int, ty: int, err_sym: str, name: str, step_updates: str) -> str:
+    def _noisy_pos_update_branches(
+        self, tx: int, ty: int, err_sym: str, name: str, step_updates: str
+    ) -> str:
         off_expr = f"({err_sym}/4.0)"
         candidates = [(tx + 1, ty), (tx - 1, ty), (tx, ty + 1), (tx, ty - 1)]
 
         valid = []
+
         for nx, ny in candidates:
-            if 0 <= nx < self.mapSize and 0 <= ny < self.mapSize and (nx, ny) not in self.obstacle_set:
+            if (
+                0 <= nx < self.mapSize
+                and 0 <= ny < self.mapSize
+                and (nx, ny) not in self.obstacle_set
+            ):
                 valid.append((nx, ny))
+
+        """random.shuffle(valid)
+        if valid:
+            valid=[valid[0]]"""
         v = len(valid)
 
-        parts = [f"(1 - {off_expr}*{v}): (xhat'={tx}) & (yhat'={ty}) & {step_updates}"]
+        if self.binary_updates:
+            parts = [f"(1 - {off_expr}*{v}): (xhat'={tx}) & (yhat'={ty})"]
+        else:
+            parts = [
+                f"(1 - {off_expr}*{v}): (xhat'={tx}) & (yhat'={ty}) & {step_updates}"
+            ]
+
         for nx, ny in valid:
-            parts.append(f"{off_expr}: (xhat'={nx}) & (yhat'={ny}) & {step_updates}")
+            if self.binary_updates:
+                parts.append(f"{off_expr}: (xhat'={nx}) & (yhat'={ny})")
+            else:
+                parts.append(
+                    f"{off_expr}: (xhat'={nx}) & (yhat'={ny}) & {step_updates}"
+                )
 
         return " + \n    ".join(parts) + ";"
-
 
 
 def generate_robot_model(i, param_file="input.json"):

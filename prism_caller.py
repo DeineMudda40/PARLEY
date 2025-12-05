@@ -3,7 +3,9 @@ import sys
 import subprocess
 import re
 
-prism_bin = 'Applications/prism/bin/prism' if sys.platform == "darwin" else 'prism'  # use local prism if not OS X
+#prism_bin = 'Applications/prism/bin/prism' if sys.platform == "darwin" else 'prism'  # use local prism if not OS X
+prism_bin = "prism"   # example: your real linux prism
+
 properties = ('\'P=?[F(x=xtarget & y=ytarget & crashed=0)]\'', '\'R{"cost"}=?[C<=200]\'')
 # properties = ('\'R{"service"} =? [F counter=iterations]\'', '\'R{"cost"} =? [F counter=iterations]\'')
 command = f'{prism_bin} -maxiters 50000 out.prism -pf '
@@ -51,5 +53,5 @@ def compute_baseline(infile, period, outfile="out.prism"):
 
         except Exception as e:
             print(f"An error occurred: {e}")
-    os.remove("out.prism")
+    #os.remove("out.prism")
     return resultline

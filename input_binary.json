@@ -3,12 +3,12 @@
     "startY": 0,
     "targetX": 9,
     "targetY": 9,
-    "p": 0.1,
-    "binary_updates": false,
+    "p": 0.033,
+    "binary_updates": true,
     "min_val": 1,
     "max_val": 10,
     "update_errors": [
-        0.1
+        0.0
     ],
     "update_names": [
         "gps"

@@ -16,24 +16,31 @@ def maps():
     create_maps.create_90_maps()
 
 
-def models(i, uncertainty_aware=False):
-    prism_model_generator.generate_robot_model(i)
+def models(i, uncertainty_aware=False, param_file="input.json"):
+    prism_model_generator.generate_robot_model(i, param_file=param_file)
     infile = f"Applications/EvoChecker-master/models/model_{i}.prism"
     outfile = f"Applications/EvoChecker-master/models/model_{i}_umc.prism"
     os.makedirs(f"Applications/EvoChecker-master/data/ROBOT{i}", exist_ok=True)
     popfile = f"Applications/EvoChecker-master/data/ROBOT{i}/Front"
 
-    """urc_synthesis.manipulate_prism_model(
-        infile,
-        outfile,
-        baseline=False,
-        initial_pop_file=popfile,
-        uncertainty_aware=uncertainty_aware
-    )"""
+    with open(param_file, "r") as json_file:
+
+        data = json.load(json_file)
+        min_val = data["min_val"]
+        max_val = data["max_val"]
+
     if uncertainty_aware:
-        urc_synthesis.ParleyUAMealy(infile,internal_states=2,transition_after_update=True).transform_file(infile,outfile,popfile)
+        urc_synthesis.ParleyUAMealy(
+            infile,
+            internal_states=5,
+            transition_after_update=False,
+            min_val=min_val,
+            max_val=max_val,range_split=True
+        ).transform_file(infile, outfile, popfile)
     else:
-        urc_synthesis.ParleyPlusURC(infile,transition_after_update=True).transform_file(infile,outfile,popfile)
+        urc_synthesis.ParleyPlusURC(
+            infile, transition_after_update=False, min_val=min_val, max_val=max_val
+        ).transform_file(infile, outfile, popfile)
 
 
 def baseline(i):
@@ -87,38 +94,45 @@ def run_unaware(i):
     __modify_properties()
     # maps()
     models(i, uncertainty_aware=False)
-    #baseline(i)
+    baseline(i)
     evo_checker(i, "_PLUS")
 
 
 def run_aware(i):
-    __modify_properties()
+    #__modify_properties()
 
     models(i, uncertainty_aware=True)
+    # baseline(i)
+    evo_checker(i, "_UA")
+
+
+def run_countdown(i):
+    models(i, uncertainty_aware=True, param_file="input.json")
     #baseline(i)
+    evo_checker(i, "_PLUS")
+
+
+def run_binary(i):
+    models(i, uncertainty_aware=False, param_file="input_binary.json")
+    # baseline(i)
+    evo_checker(i, "_UA")
+
+def run_(i):
+    models(i, uncertainty_aware=False, param_file="input_binary.json")
+    # baseline(i)
     evo_checker(i, "_UA")
 
 
 def main2():
-    #maps()
+    # maps()
     for i in range(10, 11):
-        
+
+        run_countdown(i)
+        #run_binary(i)
+
         #run_unaware(i)
-        run_aware(i)
-        #fronts(i)
-
-
-def main():
-    __modify_properties()
-    maps()
-    for i in range(10, 11):
-        models(i)
-        # baseline(i)
-        evo_checker(i, "_Hello")
-        #fronts(i)
-        # print(f'Finished map {i}')
-    # evaluation
-    # evaluation.main()
+        #run_aware(i)
+        fronts(i)
 
 
 if __name__ == "__main__":

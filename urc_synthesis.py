@@ -242,6 +242,7 @@ class ParleyUAMealy:
         actions=("east", "west", "north", "south"),
         internal_states: int = 10,
         transition_after_update: bool = False,
+        range_split: bool = False,
     ):
         self.infile = infile
         self.min_val = int(min_val)
@@ -249,6 +250,10 @@ class ParleyUAMealy:
         self.actions = list(actions)
         self.internal_states = int(internal_states)
         self.transition_after_update = bool(transition_after_update)
+        self.range_split = bool(range_split)
+
+        self._state_ranges = self._compute_state_ranges() if self.range_split else None
+
 
         with open(infile, "r") as f:
             self.services = get_services_from_prism_file(f)
@@ -324,6 +329,10 @@ class ParleyUAMealy:
 
     def add_ua(self, f: TextIOWrapper):
         f.write("\n// ===== ParleyUAMealy declarations =====\n")
+        
+        if self.range_split:  # <-- ADD
+            f.write(f"evolve int ua_init_s [1..{self.internal_states}];\n")
+        
         for service in self.services:
             f.write(
                 f"evolve int ua_init_c_{service} "
@@ -337,14 +346,18 @@ class ParleyUAMealy:
                     f"evolve int {self._tr_obs_symbol(s, combo)} [1..{self.internal_states}];\n"
                 )
                 for service in self.services:
+                    lo, hi = self._out_range_for_state(s)
                     f.write(
                         f"evolve int {self._out_obs_symbol(service, s, combo)} "
-                        f"[{self.min_val}..{self.max_val}];\n"
+                        f"[{lo}..{hi}];\n"
                     )
+
         f.write("\n")
 
         f.write("module UA\n")
-        f.write(f"  ua_s : [1..{self.internal_states}] init 1;\n")
+        init_s = "ua_init_s" if self.range_split else "1"
+        f.write(f"  ua_s : [1..{self.internal_states}] init {init_s};\n")
+
 
         for service in self.services:
             f.write(
@@ -417,19 +430,67 @@ class ParleyUAMealy:
         return self.internal_states * len(self.combinations) * per_obs
 
     def _evolvable_count(self) -> int:
-        # ua_init_c_<service> for each service + obs transitions + outputs
-        return len(self.services) + self._evolved_obs_tr_count()
+        extra = 1 if self.range_split else 0  # ua_init_s
+        return extra + len(self.services) + self._evolved_obs_tr_count()
+
+    def _evolvable_ranges_in_order(self):
+        ranges = []
+
+        # must match add_ua() declaration order
+        if self.range_split:
+            ranges.append((1, self.internal_states))  # ua_init_s
+
+        for _svc in self.services:
+            ranges.append((self.min_val, self.max_val))  # ua_init_c_<svc>
+
+        for s in range(1, self.internal_states + 1):
+            for _combo in self.combinations:
+                ranges.append((1, self.internal_states))  # ua_tr_obs_...
+                lo, hi = self._out_range_for_state(s)
+                for _svc in self.services:
+                    ranges.append((lo, hi))               # ua_out_obs_<svc>_s...
+        return ranges
+
 
     def create_pop_file(self, f: TextIOWrapper):
-        """
-        Seed population where each row is filled with a constant value:
-        row 1 -> all 1s
-        row 2 -> all 2s
-        ...
-        up to min(max_val, internal_states).
-        """
-        expected = self._evolvable_count()
+        ranges = self._evolvable_ranges_in_order()
+        expected = len(ranges)
+
+        # keep your existing "cap" idea; clamping makes it safe
         cap = min(self.max_val, self.internal_states)
 
+        def clamp(v, lo, hi):
+            return lo if v < lo else hi if v > hi else v
+
         for c in range(1, cap + 1):
-            f.write(" ".join([str(c)] * expected) + "\n")
+            row = [str(clamp(c, lo, hi)) for (lo, hi) in ranges]
+            assert len(row) == expected
+            f.write(" ".join(row) + "\n")
+
+
+    def _compute_state_ranges(self):
+        """Disjoint contiguous ranges covering [min_val..max_val].
+        State 1 gets the HIGHEST values (confident = rare GPS).
+        """
+        R = self.max_val - self.min_val + 1
+        K = self.internal_states
+        if R < K:
+            raise ValueError(
+                f"range_split=True requires at least {K} distinct values in "
+                f"[{self.min_val}..{self.max_val}] (got {R})."
+            )
+
+        base, rem = divmod(R, K)
+        ranges = [None] * (K + 1)  # 1-indexed
+        hi = self.max_val
+        for s in range(1, K + 1):
+            size = base + (1 if s <= rem else 0)
+            lo = hi - size + 1
+            ranges[s] = (lo, hi)   # s=1 highest chunk
+            hi = lo - 1
+        return ranges
+
+    def _out_range_for_state(self, s: int):
+        if not self.range_split:
+            return (self.min_val, self.max_val)
+        return self._state_ranges[s]
