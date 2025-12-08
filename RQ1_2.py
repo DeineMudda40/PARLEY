@@ -16,7 +16,7 @@ def maps():
     create_maps.create_90_maps()
 
 
-def models(i, uncertainty_aware=False, param_file="input.json"):
+def models(i, uncertainty_aware=False, param_file="input.json",mode="normal"):
     prism_model_generator.generate_robot_model(i, param_file=param_file)
     infile = f"Applications/EvoChecker-master/models/model_{i}.prism"
     outfile = f"Applications/EvoChecker-master/models/model_{i}_umc.prism"
@@ -30,18 +30,18 @@ def models(i, uncertainty_aware=False, param_file="input.json"):
         max_val = data["max_val"]
 
     if uncertainty_aware:
-        urc_synthesis.ParleyUAMealy(
-            infile,
-            internal_states=5,
-            transition_after_update=False,
-            min_val=min_val,
-            max_val=max_val,range_split=True
-        ).transform_file(infile, outfile, popfile)
+        urc_synthesis.ParleyFSCMealy(
+            infile, internal_states=2, min_val=min_val, max_val=max_val
+        ).transform_file(infile, outfile)
     else:
-        urc_synthesis.ParleyPlusURC(
-            infile, transition_after_update=False, min_val=min_val, max_val=max_val
-        ).transform_file(infile, outfile, popfile)
-
+        if mode=="normal":
+            urc_synthesis.ParleyPlusURC(
+                infile, transition_after_update=False, min_val=min_val, max_val=max_val
+            ).transform_file(infile, outfile, popfile)
+        elif mode=="distribution":
+            urc_synthesis.ParleyPlusURCDist(
+                infile, transition_after_update=False, min_val=min_val, max_val=max_val
+            ).transform_file(infile, outfile, popfile)
 
 def baseline(i):
     baseline_file = f"Applications/EvoChecker-master/data/ROBOT{i}_BASELINE/Front"
@@ -57,15 +57,15 @@ def baseline(i):
             print("finished baseline map {0}, value {1}".format(str(i), str(period)))
 
 
-def evo_checker(i, suffix=""):
+def evo_checker(i, uncertainty_aware, suffix=""):
     # invoke EvoChecker
-    run_evochecker.run(i, max_replications, suffix)
+    run_evochecker.run(i, max_replications, suffix, uncertainty_aware)
 
 
-def fronts(i):
+def fronts(i,targets_fronts=["PLUS","DIST"]):
     for period in range(max_replications):
         # plot_fronts.plot_pareto_front(i, period)
-        plot_fronts.plot_pareto_front_aware(i, period)
+        plot_fronts.plot_pareto_front_aware(i, period,targets_fronts=targets_fronts)
 
 
 def __modify_properties():
@@ -91,48 +91,27 @@ def __modify_properties():
 
 
 def run_unaware(i):
-    __modify_properties()
-    # maps()
-    models(i, uncertainty_aware=False)
+    models(i, uncertainty_aware=False,mode="normal")
     baseline(i)
-    evo_checker(i, "_PLUS")
+    evo_checker(i, False, "_PLUS")
+
+def run_unaware_dist(i):
+    models(i, uncertainty_aware=False,mode="distribution")
+    evo_checker(i, False, "_DIST")
 
 
 def run_aware(i):
-    #__modify_properties()
-
     models(i, uncertainty_aware=True)
-    # baseline(i)
-    evo_checker(i, "_UA")
-
-
-def run_countdown(i):
-    models(i, uncertainty_aware=True, param_file="input.json")
-    #baseline(i)
-    evo_checker(i, "_PLUS")
-
-
-def run_binary(i):
-    models(i, uncertainty_aware=False, param_file="input_binary.json")
-    # baseline(i)
-    evo_checker(i, "_UA")
-
-def run_(i):
-    models(i, uncertainty_aware=False, param_file="input_binary.json")
-    # baseline(i)
-    evo_checker(i, "_UA")
+    evo_checker(i, False, "_UA")
 
 
 def main2():
-    # maps()
+    #maps()
     for i in range(10, 11):
 
-        run_countdown(i)
-        #run_binary(i)
-
-        #run_unaware(i)
-        #run_aware(i)
-        fronts(i)
+        run_unaware(i)
+        run_unaware_dist(i)
+        fronts(i,targets_fronts=["PLUS","DIST"])
 
 
 if __name__ == "__main__":

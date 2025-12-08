@@ -30,8 +30,12 @@ def run_task(args,uncertainty_aware=False):
         f.write(f"       PROCESSORS = {cpu_count()}\n")  # cpu_count()
         f.write("       PLOT_PARETO_FRONT = false\n")
         f.write("       VERBOSE = true\n")
-        f.write("       LOAD_SEED = false\n")
-        #f.write("       SEED_FILE = data/ROBOT10/Front\n")
+        if uncertainty_aware:
+            f.write("       LOAD_SEED = false\n")
+            f.write("       SEED_FILE = data/ROBOT10/Front\n")
+        else:
+            f.write("       LOAD_SEED = true\n")
+            f.write("       SEED_FILE = data/ROBOT10/Front\n")
         f.write("       EVOCHECKER_TYPE = NORMAL\n")
         f.write("       EVOCHECKER_ENGINE = PRISM\n")
         f.write("       INIT_PORT = 55{0}\n".format(str(i)))
