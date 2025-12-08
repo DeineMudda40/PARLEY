@@ -63,19 +63,21 @@ def plot_pareto_front(m=10, replication=0, header=True):
     plt.close()
     
 def plot_pareto_front_aware(m=10, replication=0, header=True,targets_fronts=[]):
-    
+    plt.figure(figsize=(8, 6))
     for front in targets_fronts:
         file_path = f'Applications/EvoChecker-master/data/ROBOT{m}_REP{replication}_{front}/NSGAII/'
         x_values, y_values = __get_data(file_path, header)
 
-        plt.scatter(x_values, y_values, marker='+', label=front)
+        print(x_values,y_values)
+
+        plt.scatter(x_values, y_values,label=front)
     
     filepath = f'Applications/EvoChecker-master/data/ROBOT{m}_BASELINE'
     x_values_b, y_values_b = __get_data(filepath, header=False, split='	')
     x_values_b = x_values_b[:10]
     y_values_b = y_values_b[:10]
 
-    plt.figure(figsize=(8, 6))
+    
     plt.scatter(x_values_b, y_values_b, color='red', marker='x', label='Baseline')
 
 
