@@ -18,10 +18,10 @@ def maps():
 
 def models(i, uncertainty_aware=False, param_file="input.json",mode="normal"):
     prism_model_generator.generate_robot_model(i, param_file=param_file)
-    infile = f"Applications/EvoChecker-master/models/model_{i}.prism"
-    outfile = f"Applications/EvoChecker-master/models/model_{i}_umc.prism"
-    os.makedirs(f"Applications/EvoChecker-master/data/ROBOT{i}", exist_ok=True)
-    popfile = f"Applications/EvoChecker-master/data/ROBOT{i}/Front"
+    infile = f"models/model_{i}.prism"
+    outfile = f"models/model_{i}_umc.prism"
+    os.makedirs(f"data/ROBOT{i}", exist_ok=True)
+    popfile = f"data/ROBOT{i}/Seed_Set"
 
     with open(param_file, "r") as json_file:
 
@@ -44,11 +44,8 @@ def models(i, uncertainty_aware=False, param_file="input.json",mode="normal"):
             ).transform_file(infile, outfile, popfile)
 
 def baseline(i):
-    baseline_file = f"Applications/EvoChecker-master/data/ROBOT{i}_BASELINE/Front"
-    # baseline_file = f'Applications/EvoChecker-master/data/TAS/baseline/Front'
-    infile = f"Applications/EvoChecker-master/models/model_{i}.prism"
-    # infile = f'Applications/EvoChecker-master/models/TAS/TAS.prism'
-    os.makedirs(f"Applications/EvoChecker-master/data/ROBOT{i}_BASELINE", exist_ok=True)
+    baseline_file = f"data/ROBOT{i}/Seed_Front"
+    infile = f"models/model_{i}.prism"
     with open(baseline_file, "w") as b_file:
         for period in range(1, 11):
             b_file.write(prism_caller.compute_baseline(infile, period))
@@ -59,7 +56,7 @@ def baseline(i):
 
 def evo_checker(i, uncertainty_aware, suffix=""):
     # invoke EvoChecker
-    run_evochecker.run(i, max_replications, suffix, uncertainty_aware)
+    run_evochecker.run(i, max_replications, suffix)
 
 
 def fronts(i,targets_fronts=["PLUS","DIST"]):

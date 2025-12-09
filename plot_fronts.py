@@ -65,14 +65,14 @@ def plot_pareto_front(m=10, replication=0, header=True):
 def plot_pareto_front_aware(m=10, replication=0, header=True,targets_fronts=[]):
     plt.figure(figsize=(8, 6))
     for front in targets_fronts:
-        file_path = f'Applications/EvoChecker-master/data/ROBOT{m}_REP{replication}_{front}/NSGAII/'
+        file_path = f'data/ROBOT{m}_REP{replication}_{front}/front_out'
         x_values, y_values = __get_data(file_path, header)
 
         print(x_values,y_values)
 
         plt.scatter(x_values, y_values,label=front)
     
-    filepath = f'Applications/EvoChecker-master/data/ROBOT{m}_BASELINE'
+    filepath = f'data/ROBOT{m}/Seed_Front'
     x_values_b, y_values_b = __get_data(filepath, header=False, split='	')
     x_values_b = x_values_b[:10]
     y_values_b = y_values_b[:10]
@@ -286,10 +286,7 @@ def plot_pareto_front_for_tas(ref_point=(10, 75), header=True):
 
 def __get_data(file_path, header, split='\t'):
     data = []
-    for f_name in os.listdir(file_path):
-        if "Front" in f_name:
-            filename = f_name
-    with open(file_path + '/' + filename, 'r') as file:
+    with open(file_path, 'r') as file:
         if header:
             next(file)  # Skip the header row
         for line in file:

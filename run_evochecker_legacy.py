@@ -1,8 +1,7 @@
 import os
 from multiprocessing import Pool, cpu_count
 import shutil
-from Applications.Python_evochecker.src.evochecker.runner import run_nsga2
-from Applications.Python_evochecker.src.evochecker.export import save_front_tsv,save_parameters_tsv
+
 
 def run_task(args,uncertainty_aware=False):
     start_dir = os.getcwd()
@@ -42,25 +41,17 @@ def run_task(args,uncertainty_aware=False):
 
     os.chdir(start_dir)
 
-def run(map_,replications,suffix=""):
-    target_folder = f"data/ROBOT{map_}_REP0{suffix}"
-    if os.path.exists(target_folder):
-        shutil.rmtree(target_folder)
 
-    os.makedirs(target_folder)
+def run(map_, replications, suffix="",uncertainty_aware=False):
+    # Number of parallel processes
+    num_processes = 1  # cpu_count()
 
-    res = run_nsga2(
-        special_prism_path=f"models/model_{map_}_umc.prism",
-        pctl_path="properties/robot.pctl",
-        population_size=100,
-        max_evaluations=10000,
-        n_workers=cpu_count(),
-        rng_seed=42,
-        initial_population_path=f"data/ROBOT{map_}/Seed_Set",  # or None
-    )
+    # available maps
+    rep_values = range(replications)  # 10 replications
 
-    # Save parameter table (decoded ints/doubles/distribution bins)
-    save_parameters_tsv(f"data/ROBOT{map_}_REP0{suffix}/params_out", res)
+    # Create a list of tuples with all combinations of i and rep
+    tasks = [(map_, rep, suffix) for rep in rep_values]
 
-    # Save objective front (natural values: prob, cost, etc.)
-    save_front_tsv(f"data/ROBOT{map_}_REP0{suffix}/front_out", res)
+    run_task(tasks[0],uncertainty_aware)
+    """with Pool(num_processes) as pool:
+        pool.map(run_task, tasks)"""

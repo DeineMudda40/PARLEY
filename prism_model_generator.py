@@ -273,7 +273,7 @@ class Robot_Problem:
 
 
 def generate_robot_model(i, param_file="input.json"):
-    prism_file = f"Applications/EvoChecker-master/models/model_{i}.prism"
+    prism_file = f"models/model_{i}.prism"
 
     with open(param_file, "r") as file:
         params = json.load(file)

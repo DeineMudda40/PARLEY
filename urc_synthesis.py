@@ -223,10 +223,23 @@ class ParleyPlusURC:
 
     # ---------- popfile ----------
 
+    # ---------- popfile ----------
+
     def create_pop_file(self, f: TextIOWrapper):
-        num_vars = len(self.services) * len(self.combinations)
+        # 1) Header: names of all evolvable variables in declaration order
+        header_names = []
+        for service in self.services:
+            for combo in self.combinations:
+                header_names.append(self._decision_var(service, combo))
+
+        # write header line
+        f.write("\t".join(header_names) + "\n")
+
+        # 2) Rows: one row per c, assigning that c to all evolvables
+        num_vars = len(header_names)
         for c in range(self.min_val, self.max_val + 1):
-            f.write((" ".join([str(c)] * num_vars)) + "\n")
+            row = " ".join(str(c) for _ in range(num_vars))
+            f.write(row + "\n")
 
 
 from _io import TextIOWrapper
@@ -253,9 +266,13 @@ class ParleyPlusURCDist:
             self.features = get_hat_variables_with_ranges_and_init(f)
 
         if not self.services:
-            raise ValueError("No services found (expected const int c_<service> = ...;)")
+            raise ValueError(
+                "No services found (expected const int c_<service> = ...;)"
+            )
         if not self.features:
-            raise ValueError("No *hat variables found (expected xhat/yhat declarations).")
+            raise ValueError(
+                "No *hat variables found (expected xhat/yhat declarations)."
+            )
 
         # stable order for decision naming and combo generation
         self.feature_names = list(self.features.keys())
@@ -273,9 +290,12 @@ class ParleyPlusURCDist:
     # ---------- naming helpers ----------
 
     def _decision_dist(self, service: str, combo) -> str:
-        """Name of the evolve distribution for this service & observation."""
+        """Base name of the evolve distribution for this service & observation.
+
+        The actual parameter names are base + index, e.g. ...ph1, ...ph2, ...
+        """
         parts = [f"{name}_{value}" for name, value in zip(self.feature_names, combo)]
-        return f"{service}_decision_" + "_".join(parts)
+        return f"{service}_decision_" + "_".join(parts) + "ph"
 
     def _hat_guard(self, combo) -> str:
         return " & ".join(
@@ -328,9 +348,7 @@ class ParleyPlusURCDist:
         for service in self.services:
             for combo in self.combinations:
                 dist_name = self._decision_dist(service, combo)
-                f.write(
-                    f"evolve distribution {dist_name} [{self.num_buckets}];\n"
-                )
+                f.write(f"evolve distribution {dist_name} [{self.num_buckets}];\n")
 
         f.write("\nmodule URC\n")
         # 2) c_<service> variables now just plain counters with some default init
@@ -340,7 +358,9 @@ class ParleyPlusURCDist:
                 f"  c_{service} : [{self.min_val}..{self.max_val}] init {self.max_val};\n"
             )
 
-        f.write("\n  // URC transitions: sample c_<service> from its distribution per observation\n")
+        f.write(
+            "\n  // URC transitions: sample c_<service> from its distribution per observation\n"
+        )
         # 3) For each observation, we create one command:
         #    [URC] guard -> dist : (c_s'=min) + dist : (c_s'=min+1) + ... ;
         #
@@ -356,12 +376,11 @@ class ParleyPlusURCDist:
             )
 
             for service in self.services:
-                dist_name = self._decision_dist(service, combo)
-                # map bucket 1..num_buckets to actual values min_val..max_val
+                base = self._decision_dist(service, combo)
                 branches = []
-                for offset, val in enumerate(range(self.min_val, self.max_val + 1)):
-                    # each bin of the distribution is used once, in order
-                    branches.append(f"{dist_name} : (c_{service}'={val})")
+                # bins 1..num_buckets → values min_val..max_val
+                for i, val in enumerate(range(self.min_val, self.max_val + 1), start=1):
+                    branches.append(f"{base}{i} : (c_{service}'={val})")
 
                 f.write(f"  [URC] {guard} -> " + " + ".join(branches) + ";\n")
 
@@ -404,13 +423,36 @@ class ParleyPlusURCDist:
 
     def create_pop_file(self, f: TextIOWrapper):
         """
-        With 'evolve distribution', EvoChecker can initialise probabilities itself.
-        We leave the popfile empty so it's syntactically valid but carries no data.
-        If you want explicit initial populations, you’ll need to follow EvoChecker's
-        distribution encoding (one value per bin of each distribution).
-        """
-        pass
+        EvoChecker popfile for evolve distribution:
+        Headers look like:
+            gps_decision_x_0_y_01   gps_decision_x_0_y_02  ... gps_decision_x_0_y_0N
 
+        i.e. the bin index is appended directly with no braces.
+        """
+
+        n = self.num_buckets  # number of bins per distribution
+
+        # ---------- HEADER ----------
+        header = []
+        for service in self.services:
+            for combo in self.combinations:
+                dist_name = self._decision_dist(service, combo)
+                # naive concatenation: dist_name + str(i)
+                for i in range(1, n + 1):
+                    header.append(f"{dist_name}{i}")
+
+        f.write("\t".join(header) + "\n")
+
+        # ---------- BODY ----------
+        # n individuals: each is deterministic on a single bucket
+        for k_idx in range(n):
+            row_vals = []
+            for _service in self.services:
+                for _combo in self.combinations:
+                    for b in range(n):
+                        val = "1.0" if b == k_idx else "0.0"
+                        row_vals.append(val)
+            f.write(" ".join(row_vals) + "\n")
 
 
 from _io import TextIOWrapper
@@ -667,9 +709,13 @@ class ParleyFSCMealy:
             self.features = get_hat_variables_with_ranges_and_init(f)
 
         if not self.services:
-            raise ValueError("No services found (expected const int c_<service> = ...;)")
+            raise ValueError(
+                "No services found (expected const int c_<service> = ...;)"
+            )
         if not self.features:
-            raise ValueError("No *hat variables found (expected xhat/yhat declarations).")
+            raise ValueError(
+                "No *hat variables found (expected xhat/yhat declarations)."
+            )
 
         self.feature_names = list(self.features.keys())
 
@@ -725,7 +771,9 @@ class ParleyFSCMealy:
                     continue
 
                 # remove const int c_<service>
-                if any(line.strip().startswith(f"const int c_{s}") for s in self.services):
+                if any(
+                    line.strip().startswith(f"const int c_{s}") for s in self.services
+                ):
                     continue
 
                 fout.write(line)
@@ -751,7 +799,9 @@ class ParleyFSCMealy:
         # --- declare distributions ---
 
         # Initial threshold distributions (per service, 10 buckets)
-        f.write("// Initial threshold distributions: per service -> c_<svc> in [min_val..max_val]\n")
+        f.write(
+            "// Initial threshold distributions: per service -> c_<svc> in [min_val..max_val]\n"
+        )
         for svc in self.services:
             f.write(f"evolve distribution {self._init_dist(svc)} [10];\n")
         f.write("\n")
@@ -765,12 +815,16 @@ class ParleyFSCMealy:
         f.write("\n")
 
         # Action/threshold distributions: 10 bins per (svc, state, observation)
-        f.write("// Action/threshold distributions (10 bins) per (svc, ua_s, observation)\n")
+        f.write(
+            "// Action/threshold distributions (10 bins) per (svc, ua_s, observation)\n"
+        )
         for svc in self.services:
             for s in range(1, S + 1):
                 for combo in combos:
                     obs = self._obs_id(combo)
-                    f.write(f"evolve distribution {self._act_dist(svc, s, obs)} [10];\n")
+                    f.write(
+                        f"evolve distribution {self._act_dist(svc, s, obs)} [10];\n"
+                    )
             f.write("\n")
 
         # --- UA_TR module: owns ua_s (FSC state) ---
@@ -783,7 +837,8 @@ class ParleyFSCMealy:
             for s in range(1, S + 1):
                 for combo in combos:
                     guard_obs = " & ".join(
-                        f"{name}hat={val}" for name, val in zip(self.feature_names, combo)
+                        f"{name}hat={val}"
+                        for name, val in zip(self.feature_names, combo)
                     )
                     obs = self._obs_id(combo)
                     dist = self._tr_dist(s, obs)
@@ -800,21 +855,21 @@ class ParleyFSCMealy:
         f.write("module UA_ACT\n")
         for svc in self.services:
             # init value is arbitrary within range; it will be overwritten in the init phase
-            f.write(f"  c_{svc} : [{self.min_val}..{self.max_val}] init {self.max_val};\n")
+            f.write(
+                f"  c_{svc} : [{self.min_val}..{self.max_val}] init {self.max_val};\n"
+            )
         f.write("\n")
 
         # Initial sampling of c_<svc>, one service per t-state, via [UA_INIT_<svc>]
-        f.write("  // Initial sampling of thresholds c_<svc> (one-shot at the beginning)\n")
+        f.write(
+            "  // Initial sampling of thresholds c_<svc> (one-shot at the beginning)\n"
+        )
         for i, svc in enumerate(self.services):
             label = self._init_label(svc)
             dist = self._init_dist(svc)
             branches = [f"{dist} : (c_{svc}'={val})" for val in self.bucket_values]
             # Guard on t so only the matching Turn phase can trigger this
-            f.write(
-                f"  [{label}] (t={i}) -> "
-                + " + ".join(branches)
-                + ";\n"
-            )
+            f.write(f"  [{label}] (t={i}) -> " + " + ".join(branches) + ";\n")
         f.write("\n")
 
         # Threshold sampling after an update (depends on ua_s and observation)
@@ -824,11 +879,14 @@ class ParleyFSCMealy:
             for s in range(1, S + 1):
                 for combo in combos:
                     guard_obs = " & ".join(
-                        f"{name}hat={val}" for name, val in zip(self.feature_names, combo)
+                        f"{name}hat={val}"
+                        for name, val in zip(self.feature_names, combo)
                     )
                     obs = self._obs_id(combo)
                     dist = self._act_dist(svc, s, obs)
-                    branches = [f"{dist} : (c_{svc}'={val})" for val in self.bucket_values]
+                    branches = [
+                        f"{dist} : (c_{svc}'={val})" for val in self.bucket_values
+                    ]
                     f.write(
                         f"  [{lab}] (ua_s={s}) & {guard_obs} -> "
                         + " + ".join(branches)
@@ -856,17 +914,19 @@ class ParleyFSCMealy:
         K = len(self.services)
 
         init_start = 0
-        init_end = K - 1          # inclusive
+        init_end = K - 1  # inclusive
         move_state = K
         update_state = K + 1
-        urc_start = K + 2         # K states: K+2 .. K+1+K
-        max_t = K + 1 + K         # last URC state index
+        urc_start = K + 2  # K states: K+2 .. K+1+K
+        max_t = K + 1 + K  # last URC state index
 
         f.write("module Turn\n")
         f.write(f"  t : [0..{max_t}] init 0;\n\n")
 
         # Initialisation phases: sample each c_<svc> once
-        f.write("  // Initialisation phases: sample c_<svc> once from ua_init_dist_<svc>\n")
+        f.write(
+            "  // Initialisation phases: sample c_<svc> once from ua_init_dist_<svc>\n"
+        )
         for i, svc in enumerate(self.services):
             label = self._init_label(svc)
             cur = init_start + i
