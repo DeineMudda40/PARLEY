@@ -109,3 +109,27 @@ def save_front_tsv(path: str | Path, res: RunResult) -> None:
         for i in range(F_nat.shape[0]):
             vals = [f"{F_nat[i, j]:.10g}" for j in range(F_nat.shape[1])]
             f.write("\t".join(vals) + "\n")
+
+def save_hypervolume_history_tsv(path: str | Path, res: RunResult) -> None:
+    """
+    Save hypervolume history over time.
+
+    Columns:
+      - n_eval: number of evaluations so far
+      - hypervolume: HV value at that point
+      - time_sec: wall-clock time since start (seconds)
+    """
+    path = Path(path)
+
+    evals = np.asarray(res.evals, dtype=int)
+    hv_values = np.asarray(res.hv_values, dtype=float)
+    timestamps = np.asarray(res.timestamps, dtype=float)
+
+    assert evals.shape == hv_values.shape == timestamps.shape, (
+        "evals, hv_values, and timestamps must have same length"
+    )
+
+    with path.open("w", encoding="utf-8") as f:
+        f.write("n_eval\thypervolume\ttime_sec\n")
+        for n_eval, hv, t in zip(evals, hv_values, timestamps):
+            f.write(f"{n_eval}\t{hv:.10g}\t{t:.6f}\n")

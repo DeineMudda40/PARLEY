@@ -5,6 +5,8 @@ from _io import TextIOWrapper
 import re
 import random
 
+from pathlib import Path
+
 
 class Robot_Problem:
     def __init__(self, map_params, map_array):
@@ -285,5 +287,95 @@ def generate_robot_model(i, param_file="input.json"):
             map_array.append(row)
 
     rp = Robot_Problem(params, map_array)
+    generate_map_png(rp)
 
     rp.to_file(prism_file)
+
+
+def generate_map_png(
+    rp: Robot_Problem,
+    out_path: str = "plots/map.png",
+    cell_size: int = 40,
+):
+    import pygame
+
+    pygame.init()
+
+    size = rp.mapSize
+    width = size * cell_size
+    height = size * cell_size
+
+    surface = pygame.Surface((width + 1, height + 1))
+
+    # Colors
+    FREE = (220, 220, 220)
+    OBSTACLE = (0, 0, 0)
+    START = (50, 100, 255)
+    TARGET = (50, 180, 50)
+    GRID = (120, 120, 120)
+
+    # Draw grid cells
+    for x in range(size):
+        for y in range(size):
+            rect = pygame.Rect(
+                x * cell_size,
+                (size - 1 - y) * cell_size,
+                cell_size,
+                cell_size,
+            )
+
+            if (x, y) in rp.obstacle_set:
+                color = OBSTACLE
+            else:
+                color = FREE
+
+            pygame.draw.rect(surface, color, rect)
+
+    # Draw start and target
+    sx, sy = rp.start_pos
+    tx, ty = rp.target_pos
+
+    pygame.draw.rect(
+        surface,
+        START,
+        pygame.Rect(
+            sx * cell_size,
+            (size - 1 - sy) * cell_size,
+            cell_size,
+            cell_size,
+        ),
+    )
+
+    pygame.draw.rect(
+        surface,
+        TARGET,
+        pygame.Rect(
+            tx * cell_size,
+            (size - 1 - ty) * cell_size,
+            cell_size,
+            cell_size,
+        ),
+    )
+
+    # Draw grid lines
+    for i in range(size + 1):
+        pygame.draw.line(
+            surface,
+            GRID,
+            (0, i * cell_size),
+            (width, i * cell_size),
+            1,
+        )
+        pygame.draw.line(
+            surface,
+            GRID,
+            (i * cell_size, 0),
+            (i * cell_size, height),
+            1,
+        )
+
+    path = Path(out_path)
+    path.unlink(missing_ok=True)
+
+    pygame.image.save(surface, out_path)
+    pygame.quit()

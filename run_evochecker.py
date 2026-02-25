@@ -2,65 +2,42 @@ import os
 from multiprocessing import Pool, cpu_count
 import shutil
 from Applications.Python_evochecker.src.evochecker.runner import run_nsga2
-from Applications.Python_evochecker.src.evochecker.export import save_front_tsv,save_parameters_tsv
+from Applications.Python_evochecker.src.evochecker.export import (
+    save_front_tsv,
+    save_parameters_tsv,
+    save_hypervolume_history_tsv,
+)
+import numpy as np
 
-def run_task(args,uncertainty_aware=False):
-    start_dir = os.getcwd()
-    os.chdir("Applications/EvoChecker-master")
-    os.environ["LD_LIBRARY_PATH"] = "libs/runtime"
-    i, rep, suffix = args
 
-    folder_to_delete = "data/ROBOT{0}_REP{1}{2}".format(i, rep, suffix)
-    if os.path.exists(folder_to_delete):
-        shutil.rmtree(folder_to_delete)
-        print(f"Deleted folder: {folder_to_delete}")
+def run(map_, replications, suffix="", load_from_pre_pop=False):
+
+    if load_from_pre_pop:
+        init_pop_path = f"data/ROBOT{map_}/Seed_Set"
     else:
-        print(f"Folder not found, skipping delete: {folder_to_delete}")
+        init_pop_path = f"data/ROBOT{map_}/Seed_Set"
 
-    path = "./{0}_{1}.properties".format(str(i), str(rep))
-    open(path, "w").close()
-    with open(path, "a") as f:
-        f.write("PROBLEM = ROBOT{0}_REP{1}{2}\n".format(str(i), str(rep), suffix))
-        f.write(
-            "       MODEL_TEMPLATE_FILE = models/model_{0}_umc.prism\n".format(str(i))
-        )
-        f.write("       PROPERTIES_FILE = ../../robot.pctl\n")
-        f.write("       ALGORITHM = NSGAII\n")
-        f.write("       POPULATION_SIZE = 10\n")
-        f.write("       MAX_EVALUATIONS = 10\n")
-        f.write(f"       PROCESSORS = {cpu_count()}\n")  # cpu_count()
-        f.write("       PLOT_PARETO_FRONT = false\n")
-        f.write("       VERBOSE = true\n")
-        f.write("       LOAD_SEED = true\n")
-        f.write("       SEED_FILE = data/ROBOT10/Seed_Set\n")
-        f.write("       EVOCHECKER_TYPE = NORMAL\n")
-        f.write("       EVOCHECKER_ENGINE = PRISM\n")
-        f.write("       INIT_PORT = 55{0}\n".format(str(i)))
-    # Note: INIT_PORT doesn't have an effect https://github.com/gerasimou/EvoChecker/issues/11
+    res = run_nsga2(
+        special_prism_path=f"models/model_{map_}_umc.prism",
+        pctl_path="properties/robot.pctl",
+        population_size=160,
+        max_evaluations=160 * 250,
+        n_workers=cpu_count(),
+        rng_seed=42,
+        initial_population_path=init_pop_path,
+        ref_point=np.array([0.0, 220.0]),
+    )
 
-    os.system("java -jar ./target/EvoChecker-1.1.1.jar " + path)
-
-    os.chdir(start_dir)
-
-def run(map_,replications,suffix=""):
-    target_folder = f"data/ROBOT{map_}_REP0{suffix}"
+    target_folder = f"data/ROBOT{map_}_REP0_{suffix}"
     if os.path.exists(target_folder):
         shutil.rmtree(target_folder)
 
     os.makedirs(target_folder)
 
-    res = run_nsga2(
-        special_prism_path=f"models/model_{map_}_umc.prism",
-        pctl_path="properties/robot.pctl",
-        population_size=100,
-        max_evaluations=10000,
-        n_workers=cpu_count(),
-        rng_seed=42,
-        initial_population_path=f"data/ROBOT{map_}/Seed_Set",  # or None
-    )
+    save_hypervolume_history_tsv(f"data/ROBOT{map_}_REP0_{suffix}/hv_history", res)
 
     # Save parameter table (decoded ints/doubles/distribution bins)
-    save_parameters_tsv(f"data/ROBOT{map_}_REP0{suffix}/params_out", res)
+    save_parameters_tsv(f"data/ROBOT{map_}_REP0_{suffix}/params_out", res)
 
     # Save objective front (natural values: prob, cost, etc.)
-    save_front_tsv(f"data/ROBOT{map_}_REP0{suffix}/front_out", res)
+    save_front_tsv(f"data/ROBOT{map_}_REP0_{suffix}/front_out", res)

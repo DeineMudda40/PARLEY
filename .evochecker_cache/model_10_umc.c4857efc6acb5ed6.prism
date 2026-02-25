@@ -1,0 +1,369 @@
+dtmc
+const int gps_decision_x_0_y_0;
+const int gps_decision_x_0_y_1;
+const int gps_decision_x_0_y_2;
+const int gps_decision_x_0_y_3;
+const int gps_decision_x_0_y_4;
+const int gps_decision_x_0_y_5;
+const int gps_decision_x_0_y_6;
+const int gps_decision_x_0_y_7;
+const int gps_decision_x_0_y_8;
+const int gps_decision_x_0_y_9;
+const int gps_decision_x_1_y_0;
+const int gps_decision_x_1_y_1;
+const int gps_decision_x_1_y_2;
+const int gps_decision_x_1_y_3;
+const int gps_decision_x_1_y_4;
+const int gps_decision_x_1_y_5;
+const int gps_decision_x_1_y_6;
+const int gps_decision_x_1_y_7;
+const int gps_decision_x_1_y_8;
+const int gps_decision_x_1_y_9;
+const int gps_decision_x_2_y_0;
+const int gps_decision_x_2_y_1;
+const int gps_decision_x_2_y_2;
+const int gps_decision_x_2_y_3;
+const int gps_decision_x_2_y_4;
+const int gps_decision_x_2_y_5;
+const int gps_decision_x_2_y_6;
+const int gps_decision_x_2_y_7;
+const int gps_decision_x_2_y_8;
+const int gps_decision_x_2_y_9;
+const int gps_decision_x_3_y_0;
+const int gps_decision_x_3_y_1;
+const int gps_decision_x_3_y_2;
+const int gps_decision_x_3_y_3;
+const int gps_decision_x_3_y_4;
+const int gps_decision_x_3_y_5;
+const int gps_decision_x_3_y_6;
+const int gps_decision_x_3_y_7;
+const int gps_decision_x_3_y_8;
+const int gps_decision_x_3_y_9;
+const int gps_decision_x_4_y_0;
+const int gps_decision_x_4_y_1;
+const int gps_decision_x_4_y_2;
+const int gps_decision_x_4_y_3;
+const int gps_decision_x_4_y_4;
+const int gps_decision_x_4_y_5;
+const int gps_decision_x_4_y_6;
+const int gps_decision_x_4_y_7;
+const int gps_decision_x_4_y_8;
+const int gps_decision_x_4_y_9;
+const int gps_decision_x_5_y_0;
+const int gps_decision_x_5_y_1;
+const int gps_decision_x_5_y_2;
+const int gps_decision_x_5_y_3;
+const int gps_decision_x_5_y_4;
+const int gps_decision_x_5_y_5;
+const int gps_decision_x_5_y_6;
+const int gps_decision_x_5_y_7;
+const int gps_decision_x_5_y_8;
+const int gps_decision_x_5_y_9;
+const int gps_decision_x_6_y_0;
+const int gps_decision_x_6_y_1;
+const int gps_decision_x_6_y_2;
+const int gps_decision_x_6_y_3;
+const int gps_decision_x_6_y_4;
+const int gps_decision_x_6_y_5;
+const int gps_decision_x_6_y_6;
+const int gps_decision_x_6_y_7;
+const int gps_decision_x_6_y_8;
+const int gps_decision_x_6_y_9;
+const int gps_decision_x_7_y_0;
+const int gps_decision_x_7_y_1;
+const int gps_decision_x_7_y_2;
+const int gps_decision_x_7_y_3;
+const int gps_decision_x_7_y_4;
+const int gps_decision_x_7_y_5;
+const int gps_decision_x_7_y_6;
+const int gps_decision_x_7_y_7;
+const int gps_decision_x_7_y_8;
+const int gps_decision_x_7_y_9;
+const int gps_decision_x_8_y_0;
+const int gps_decision_x_8_y_1;
+const int gps_decision_x_8_y_2;
+const int gps_decision_x_8_y_3;
+const int gps_decision_x_8_y_4;
+const int gps_decision_x_8_y_5;
+const int gps_decision_x_8_y_6;
+const int gps_decision_x_8_y_7;
+const int gps_decision_x_8_y_8;
+const int gps_decision_x_8_y_9;
+const int gps_decision_x_9_y_0;
+const int gps_decision_x_9_y_1;
+const int gps_decision_x_9_y_2;
+const int gps_decision_x_9_y_3;
+const int gps_decision_x_9_y_4;
+const int gps_decision_x_9_y_5;
+const int gps_decision_x_9_y_6;
+const int gps_decision_x_9_y_7;
+const int gps_decision_x_9_y_8;
+const int gps_decision_x_9_y_9;
+const int N = 9;
+const int xstart = 0;
+const int ystart = 0;
+const int xtarget = 9;
+const int ytarget = 9;
+const double p = 0.01;
+const double e_gps = 0.0;
+formula hasCrashed = (1=0) | (x=0 & y=3) | (x=0 & y=4) | (x=0 & y=6) | (x=0 & y=8) | (x=1 & y=1) | (x=1 & y=5) | (x=2 & y=1) | (x=2 & y=4) | (x=2 & y=7) | (x=2 & y=8) | (x=3 & y=6) | (x=4 & y=5) | (x=4 & y=6) | (x=4 & y=7) | (x=5 & y=1) | (x=5 & y=6) | (x=5 & y=7) | (x=6 & y=2) | (x=6 & y=6) | (x=6 & y=9) | (x=7 & y=1) | (x=7 & y=6) | (x=7 & y=9) | (x=8 & y=5) | (x=8 & y=6) ;
+
+module Robot 
+  x : [0..N] init xstart;
+  y : [0..N] init ystart;
+  crashed : [0..1] init 0;
+
+[west] true -> 
+     p: (x'=min(x+1, N)) + 
+    p: (y'=min(y+1, N)) + 
+    p: (y'=max(y-1, 0)) + 
+    (1-3*p): (x'=max(x-1, 0));
+
+[east] true -> 
+     (1-3*p): (x'=min(x+1, N)) + 
+    p: (y'=min(y+1, N)) + 
+    p: (y'=max(y-1, 0)) + 
+    p: (x'=max(x-1, 0));
+
+[south] true -> 
+     p: (x'=min(x+1, N)) + 
+    p: (y'=min(y+1, N)) + 
+    (1-3*p): (y'=max(y-1, 0)) + 
+    p: (x'=max(x-1, 0));
+
+[north] true -> 
+     p: (x'=min(x+1, N)) + 
+    (1-3*p): (y'=min(y+1, N)) + 
+    p: (y'=max(y-1, 0)) + 
+    p: (x'=max(x-1, 0));
+
+
+  [update_gps] hasCrashed  -> (crashed'=1);
+  [update_gps] !hasCrashed -> (crashed'=crashed);
+  [skip_update] hasCrashed  -> (crashed'=1);
+  [skip_update] !hasCrashed -> (crashed'=crashed);
+endmodule
+
+module Adaptation_MAPE_controller
+  [east] (xhat=0) & (yhat=0) -> true;
+  [north] (xhat=0) & (yhat=1) -> true;
+  [east] (xhat=0) & (yhat=2) -> true;
+  [east] (xhat=0) & (yhat=7) -> true;
+  [east] (xhat=0) & (yhat=9) -> true;
+  [east] (xhat=1) & (yhat=0) -> true;
+  [east] (xhat=1) & (yhat=2) -> true;
+  [east] (xhat=1) & (yhat=3) -> true;
+  [south] (xhat=1) & (yhat=4) -> true;
+  [north] (xhat=1) & (yhat=6) -> true;
+  [north] (xhat=1) & (yhat=7) -> true;
+  [north] (xhat=1) & (yhat=8) -> true;
+  [east] (xhat=1) & (yhat=9) -> true;
+  [east] (xhat=2) & (yhat=0) -> true;
+  [east] (xhat=2) & (yhat=2) -> true;
+  [east] (xhat=2) & (yhat=3) -> true;
+  [east] (xhat=2) & (yhat=5) -> true;
+  [south] (xhat=2) & (yhat=6) -> true;
+  [east] (xhat=2) & (yhat=9) -> true;
+  [north] (xhat=3) & (yhat=0) -> true;
+  [north] (xhat=3) & (yhat=1) -> true;
+  [north] (xhat=3) & (yhat=2) -> true;
+  [east] (xhat=3) & (yhat=3) -> true;
+  [south] (xhat=3) & (yhat=4) -> true;
+  [south] (xhat=3) & (yhat=5) -> true;
+  [north] (xhat=3) & (yhat=7) -> true;
+  [east] (xhat=3) & (yhat=8) -> true;
+  [east] (xhat=3) & (yhat=9) -> true;
+  [west] (xhat=4) & (yhat=0) -> true;
+  [north] (xhat=4) & (yhat=1) -> true;
+  [north] (xhat=4) & (yhat=2) -> true;
+  [east] (xhat=4) & (yhat=3) -> true;
+  [east] (xhat=4) & (yhat=4) -> true;
+  [east] (xhat=4) & (yhat=8) -> true;
+  [south] (xhat=4) & (yhat=9) -> true;
+  [west] (xhat=5) & (yhat=0) -> true;
+  [north] (xhat=5) & (yhat=2) -> true;
+  [north] (xhat=5) & (yhat=3) -> true;
+  [east] (xhat=5) & (yhat=4) -> true;
+  [south] (xhat=5) & (yhat=5) -> true;
+  [east] (xhat=5) & (yhat=8) -> true;
+  [south] (xhat=5) & (yhat=9) -> true;
+  [east] (xhat=6) & (yhat=0) -> true;
+  [south] (xhat=6) & (yhat=1) -> true;
+  [east] (xhat=6) & (yhat=3) -> true;
+  [east] (xhat=6) & (yhat=4) -> true;
+  [south] (xhat=6) & (yhat=5) -> true;
+  [north] (xhat=6) & (yhat=7) -> true;
+  [east] (xhat=6) & (yhat=8) -> true;
+  [east] (xhat=7) & (yhat=0) -> true;
+  [north] (xhat=7) & (yhat=2) -> true;
+  [east] (xhat=7) & (yhat=3) -> true;
+  [south] (xhat=7) & (yhat=4) -> true;
+  [south] (xhat=7) & (yhat=5) -> true;
+  [north] (xhat=7) & (yhat=7) -> true;
+  [east] (xhat=7) & (yhat=8) -> true;
+  [east] (xhat=8) & (yhat=0) -> true;
+  [north] (xhat=8) & (yhat=1) -> true;
+  [north] (xhat=8) & (yhat=2) -> true;
+  [east] (xhat=8) & (yhat=3) -> true;
+  [east] (xhat=8) & (yhat=4) -> true;
+  [north] (xhat=8) & (yhat=7) -> true;
+  [east] (xhat=8) & (yhat=8) -> true;
+  [east] (xhat=8) & (yhat=9) -> true;
+  [north] (xhat=9) & (yhat=0) -> true;
+  [north] (xhat=9) & (yhat=1) -> true;
+  [north] (xhat=9) & (yhat=2) -> true;
+  [north] (xhat=9) & (yhat=3) -> true;
+  [north] (xhat=9) & (yhat=4) -> true;
+  [north] (xhat=9) & (yhat=5) -> true;
+  [north] (xhat=9) & (yhat=6) -> true;
+  [north] (xhat=9) & (yhat=7) -> true;
+  [north] (xhat=9) & (yhat=8) -> true;
+endmodule
+
+formula due_gps = (step_gps>=c_gps);
+module Knowledge
+  xhat : [0..N] init xstart;
+  yhat : [0..N] init ystart;
+  step_gps : [1..10] init 1;
+  [west] true -> (xhat'=max(xhat-1, 0));
+
+  [east] true -> (xhat'=min(xhat+1, N));
+
+  [south] true -> (yhat'=max(yhat-1, 0));
+
+  [north] true -> (yhat'=min(yhat+1, N));
+
+
+  [update_gps] due_gps -> (xhat'=x) & (yhat'=y) & (step_gps'=1);
+
+  [skip_update] !(due_gps) ->(step_gps'=min(step_gps+1,10));
+endmodule
+
+
+rewards "cost" 
+  [west] true : 1; 
+  [east] true : 1; 
+  [south] true : 1; 
+  [north] true : 1; 
+  [update_gps] true : 5;
+endrewards 
+
+
+module URC
+  c_gps : [1..10] init gps_decision_x_0_y_0;
+
+  // URC transitions
+  [URC] xhat=0 & yhat=0 -> (c_gps'=gps_decision_x_0_y_0);
+  [URC] xhat=0 & yhat=1 -> (c_gps'=gps_decision_x_0_y_1);
+  [URC] xhat=0 & yhat=2 -> (c_gps'=gps_decision_x_0_y_2);
+  [URC] xhat=0 & yhat=3 -> (c_gps'=gps_decision_x_0_y_3);
+  [URC] xhat=0 & yhat=4 -> (c_gps'=gps_decision_x_0_y_4);
+  [URC] xhat=0 & yhat=5 -> (c_gps'=gps_decision_x_0_y_5);
+  [URC] xhat=0 & yhat=6 -> (c_gps'=gps_decision_x_0_y_6);
+  [URC] xhat=0 & yhat=7 -> (c_gps'=gps_decision_x_0_y_7);
+  [URC] xhat=0 & yhat=8 -> (c_gps'=gps_decision_x_0_y_8);
+  [URC] xhat=0 & yhat=9 -> (c_gps'=gps_decision_x_0_y_9);
+  [URC] xhat=1 & yhat=0 -> (c_gps'=gps_decision_x_1_y_0);
+  [URC] xhat=1 & yhat=1 -> (c_gps'=gps_decision_x_1_y_1);
+  [URC] xhat=1 & yhat=2 -> (c_gps'=gps_decision_x_1_y_2);
+  [URC] xhat=1 & yhat=3 -> (c_gps'=gps_decision_x_1_y_3);
+  [URC] xhat=1 & yhat=4 -> (c_gps'=gps_decision_x_1_y_4);
+  [URC] xhat=1 & yhat=5 -> (c_gps'=gps_decision_x_1_y_5);
+  [URC] xhat=1 & yhat=6 -> (c_gps'=gps_decision_x_1_y_6);
+  [URC] xhat=1 & yhat=7 -> (c_gps'=gps_decision_x_1_y_7);
+  [URC] xhat=1 & yhat=8 -> (c_gps'=gps_decision_x_1_y_8);
+  [URC] xhat=1 & yhat=9 -> (c_gps'=gps_decision_x_1_y_9);
+  [URC] xhat=2 & yhat=0 -> (c_gps'=gps_decision_x_2_y_0);
+  [URC] xhat=2 & yhat=1 -> (c_gps'=gps_decision_x_2_y_1);
+  [URC] xhat=2 & yhat=2 -> (c_gps'=gps_decision_x_2_y_2);
+  [URC] xhat=2 & yhat=3 -> (c_gps'=gps_decision_x_2_y_3);
+  [URC] xhat=2 & yhat=4 -> (c_gps'=gps_decision_x_2_y_4);
+  [URC] xhat=2 & yhat=5 -> (c_gps'=gps_decision_x_2_y_5);
+  [URC] xhat=2 & yhat=6 -> (c_gps'=gps_decision_x_2_y_6);
+  [URC] xhat=2 & yhat=7 -> (c_gps'=gps_decision_x_2_y_7);
+  [URC] xhat=2 & yhat=8 -> (c_gps'=gps_decision_x_2_y_8);
+  [URC] xhat=2 & yhat=9 -> (c_gps'=gps_decision_x_2_y_9);
+  [URC] xhat=3 & yhat=0 -> (c_gps'=gps_decision_x_3_y_0);
+  [URC] xhat=3 & yhat=1 -> (c_gps'=gps_decision_x_3_y_1);
+  [URC] xhat=3 & yhat=2 -> (c_gps'=gps_decision_x_3_y_2);
+  [URC] xhat=3 & yhat=3 -> (c_gps'=gps_decision_x_3_y_3);
+  [URC] xhat=3 & yhat=4 -> (c_gps'=gps_decision_x_3_y_4);
+  [URC] xhat=3 & yhat=5 -> (c_gps'=gps_decision_x_3_y_5);
+  [URC] xhat=3 & yhat=6 -> (c_gps'=gps_decision_x_3_y_6);
+  [URC] xhat=3 & yhat=7 -> (c_gps'=gps_decision_x_3_y_7);
+  [URC] xhat=3 & yhat=8 -> (c_gps'=gps_decision_x_3_y_8);
+  [URC] xhat=3 & yhat=9 -> (c_gps'=gps_decision_x_3_y_9);
+  [URC] xhat=4 & yhat=0 -> (c_gps'=gps_decision_x_4_y_0);
+  [URC] xhat=4 & yhat=1 -> (c_gps'=gps_decision_x_4_y_1);
+  [URC] xhat=4 & yhat=2 -> (c_gps'=gps_decision_x_4_y_2);
+  [URC] xhat=4 & yhat=3 -> (c_gps'=gps_decision_x_4_y_3);
+  [URC] xhat=4 & yhat=4 -> (c_gps'=gps_decision_x_4_y_4);
+  [URC] xhat=4 & yhat=5 -> (c_gps'=gps_decision_x_4_y_5);
+  [URC] xhat=4 & yhat=6 -> (c_gps'=gps_decision_x_4_y_6);
+  [URC] xhat=4 & yhat=7 -> (c_gps'=gps_decision_x_4_y_7);
+  [URC] xhat=4 & yhat=8 -> (c_gps'=gps_decision_x_4_y_8);
+  [URC] xhat=4 & yhat=9 -> (c_gps'=gps_decision_x_4_y_9);
+  [URC] xhat=5 & yhat=0 -> (c_gps'=gps_decision_x_5_y_0);
+  [URC] xhat=5 & yhat=1 -> (c_gps'=gps_decision_x_5_y_1);
+  [URC] xhat=5 & yhat=2 -> (c_gps'=gps_decision_x_5_y_2);
+  [URC] xhat=5 & yhat=3 -> (c_gps'=gps_decision_x_5_y_3);
+  [URC] xhat=5 & yhat=4 -> (c_gps'=gps_decision_x_5_y_4);
+  [URC] xhat=5 & yhat=5 -> (c_gps'=gps_decision_x_5_y_5);
+  [URC] xhat=5 & yhat=6 -> (c_gps'=gps_decision_x_5_y_6);
+  [URC] xhat=5 & yhat=7 -> (c_gps'=gps_decision_x_5_y_7);
+  [URC] xhat=5 & yhat=8 -> (c_gps'=gps_decision_x_5_y_8);
+  [URC] xhat=5 & yhat=9 -> (c_gps'=gps_decision_x_5_y_9);
+  [URC] xhat=6 & yhat=0 -> (c_gps'=gps_decision_x_6_y_0);
+  [URC] xhat=6 & yhat=1 -> (c_gps'=gps_decision_x_6_y_1);
+  [URC] xhat=6 & yhat=2 -> (c_gps'=gps_decision_x_6_y_2);
+  [URC] xhat=6 & yhat=3 -> (c_gps'=gps_decision_x_6_y_3);
+  [URC] xhat=6 & yhat=4 -> (c_gps'=gps_decision_x_6_y_4);
+  [URC] xhat=6 & yhat=5 -> (c_gps'=gps_decision_x_6_y_5);
+  [URC] xhat=6 & yhat=6 -> (c_gps'=gps_decision_x_6_y_6);
+  [URC] xhat=6 & yhat=7 -> (c_gps'=gps_decision_x_6_y_7);
+  [URC] xhat=6 & yhat=8 -> (c_gps'=gps_decision_x_6_y_8);
+  [URC] xhat=6 & yhat=9 -> (c_gps'=gps_decision_x_6_y_9);
+  [URC] xhat=7 & yhat=0 -> (c_gps'=gps_decision_x_7_y_0);
+  [URC] xhat=7 & yhat=1 -> (c_gps'=gps_decision_x_7_y_1);
+  [URC] xhat=7 & yhat=2 -> (c_gps'=gps_decision_x_7_y_2);
+  [URC] xhat=7 & yhat=3 -> (c_gps'=gps_decision_x_7_y_3);
+  [URC] xhat=7 & yhat=4 -> (c_gps'=gps_decision_x_7_y_4);
+  [URC] xhat=7 & yhat=5 -> (c_gps'=gps_decision_x_7_y_5);
+  [URC] xhat=7 & yhat=6 -> (c_gps'=gps_decision_x_7_y_6);
+  [URC] xhat=7 & yhat=7 -> (c_gps'=gps_decision_x_7_y_7);
+  [URC] xhat=7 & yhat=8 -> (c_gps'=gps_decision_x_7_y_8);
+  [URC] xhat=7 & yhat=9 -> (c_gps'=gps_decision_x_7_y_9);
+  [URC] xhat=8 & yhat=0 -> (c_gps'=gps_decision_x_8_y_0);
+  [URC] xhat=8 & yhat=1 -> (c_gps'=gps_decision_x_8_y_1);
+  [URC] xhat=8 & yhat=2 -> (c_gps'=gps_decision_x_8_y_2);
+  [URC] xhat=8 & yhat=3 -> (c_gps'=gps_decision_x_8_y_3);
+  [URC] xhat=8 & yhat=4 -> (c_gps'=gps_decision_x_8_y_4);
+  [URC] xhat=8 & yhat=5 -> (c_gps'=gps_decision_x_8_y_5);
+  [URC] xhat=8 & yhat=6 -> (c_gps'=gps_decision_x_8_y_6);
+  [URC] xhat=8 & yhat=7 -> (c_gps'=gps_decision_x_8_y_7);
+  [URC] xhat=8 & yhat=8 -> (c_gps'=gps_decision_x_8_y_8);
+  [URC] xhat=8 & yhat=9 -> (c_gps'=gps_decision_x_8_y_9);
+  [URC] xhat=9 & yhat=0 -> (c_gps'=gps_decision_x_9_y_0);
+  [URC] xhat=9 & yhat=1 -> (c_gps'=gps_decision_x_9_y_1);
+  [URC] xhat=9 & yhat=2 -> (c_gps'=gps_decision_x_9_y_2);
+  [URC] xhat=9 & yhat=3 -> (c_gps'=gps_decision_x_9_y_3);
+  [URC] xhat=9 & yhat=4 -> (c_gps'=gps_decision_x_9_y_4);
+  [URC] xhat=9 & yhat=5 -> (c_gps'=gps_decision_x_9_y_5);
+  [URC] xhat=9 & yhat=6 -> (c_gps'=gps_decision_x_9_y_6);
+  [URC] xhat=9 & yhat=7 -> (c_gps'=gps_decision_x_9_y_7);
+  [URC] xhat=9 & yhat=8 -> (c_gps'=gps_decision_x_9_y_8);
+  [URC] xhat=9 & yhat=9 -> (c_gps'=gps_decision_x_9_y_9);
+endmodule
+
+module Turn
+  t : [0..2] init 0;
+  [east] (t=0) -> (t'=1);
+  [west] (t=0) -> (t'=1);
+  [north] (t=0) -> (t'=1);
+  [south] (t=0) -> (t'=1);
+
+  [URC] (t=1) -> (t'=2);
+
+  [update_gps] (t=2) -> (t'=0);
+  [skip_update] (t=2) -> (t'=0);
+endmodule

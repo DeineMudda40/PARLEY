@@ -8,6 +8,11 @@ import numpy as np
 from pymoo.algorithms.moo.nsga2 import NSGA2
 from pymoo.optimize import minimize
 from pymoo.termination import get_termination
+from pymoo.algorithms.moo.nsga2 import NSGA2
+from pymoo.operators.crossover.sbx import SBX
+from pymoo.operators.mutation.pm import PM
+from pymoo.operators.repair.rounding import RoundingRepair
+from pymoo.operators.sampling.rnd import IntegerRandomSampling
 
 from .special_prism import preprocess_special_prism
 from .pctl_spec import parse_pctl_with_tags, ParsedPctl
@@ -17,6 +22,39 @@ from .sampling import SeededSampling
 from .seed_loader import load_seed_table
 from .model_spec import DecisionLayout
 
+
+from pymoo.core.callback import Callback
+from pymoo.indicators.hv import HV
+import numpy as np
+import time
+
+
+class HypervolumeCallback(Callback):
+    def __init__(self, ref_point):
+        super().__init__()
+        self.hv = HV(ref_point=ref_point)
+        
+        self.data["evals"] = []
+        self.data["hv"] = []
+        self.data["timestamps"] = []
+        
+        self._start_time = time.perf_counter()
+
+    def notify(self, algorithm):
+        now = time.perf_counter()
+        self.data["timestamps"].append(now - self._start_time)
+        
+        F = algorithm.opt.get("F")
+
+        if F is not None and len(F) > 0:
+            hv_value = self.hv(F)
+        else:
+            hv_value = 0.0
+
+        self.data["evals"].append(algorithm.evaluator.n_eval)
+        self.data["hv"].append(hv_value)
+
+
 @dataclass(frozen=True)
 class RunResult:
     X: np.ndarray  # decision vectors in internal encoding
@@ -24,7 +62,9 @@ class RunResult:
     G: Optional[np.ndarray]
     layout: DecisionLayout
     pctl: ParsedPctl
-
+    evals: np.ndarray
+    hv_values: np.ndarray
+    timestamps: np.ndarray
 
 
 def run_nsga2(
@@ -36,6 +76,7 @@ def run_nsga2(
     n_workers: Optional[int] = None,
     rng_seed: int = 1,
     initial_population_path: Optional[str] = None,
+    ref_point=np.array([1.0, 100.0]),
 ) -> RunResult:
     """
     Main entrypoint.
@@ -86,9 +127,12 @@ def run_nsga2(
             algorithm = NSGA2(
                 pop_size=population_size,
                 sampling=SeededSampling(pre.layout, X_seed),
+                eliminate_duplicates=True,
             )
 
         termination = get_termination("n_eval", max_evaluations)
+
+        hv_callback = HypervolumeCallback(ref_point)
 
         res = minimize(
             problem,
@@ -97,6 +141,7 @@ def run_nsga2(
             seed=rng_seed,
             verbose=True,
             save_history=False,
+            callback=hv_callback,
         )
 
         X = np.asarray(res.X)
@@ -109,8 +154,10 @@ def run_nsga2(
             G=G,
             layout=pre.layout,
             pctl=pctl,
+            evals=np.array(hv_callback.data["evals"]),
+            hv_values=np.array(hv_callback.data["hv"]),
+            timestamps=np.array(hv_callback.data["timestamps"]),
         )
-
 
     finally:
         pool.close()
